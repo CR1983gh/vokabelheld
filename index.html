@@ -504,9 +504,7 @@ function ensure(){
         /* Migration: 'Sklavin, Dienerin' -> eigene Bedeutungs-Felder; Kommata in Klammern bleiben */
         var aufget=[];
         p.m.forEach(function(x){
-          String(x||'').split(/;|,(?![^(]*\))/).forEach(function(t){
-            t=t.trim(); if(t&&aufget.indexOf(t)<0)aufget.push(t);
-          });
+          splitMeanings(x).forEach(function(t){ if(aufget.indexOf(t)<0)aufget.push(t); });
         });
         p.m=aufget.filter(Boolean);
         p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
@@ -1541,6 +1539,14 @@ $('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','�
 $('ed-campusc').addEventListener('click',function(){loadPreset('campusC.txt','🏛️ Campus C-Wortschatz I–III laden');});
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
+function splitMeanings(str){
+  /* 'Sklavin, Dienerin' -> zwei Bedeutungen; Kommata in Klammern bleiben */
+  var out=[];
+  String(str||'').split(/;|,(?![^(]*\))/).forEach(function(t){
+    t=t.trim(); if(t&&out.indexOf(t)<0)out.push(t);
+  });
+  return out;
+}
 function parseExport(txt){
   var books=[],curBook=null,curLesson=null;
   function mkBook(name,lang){ curBook={name:name||'Importiertes Buch',lang:lang||'en',lessons:[]};books.push(curBook);curLesson=null; }
@@ -1565,7 +1571,7 @@ function parseExport(txt){
     var eq=line.indexOf('=');
     if(eq<0)return;
     var w=line.slice(0,eq).trim();
-    var ms=line.slice(eq+1).split(';').map(function(x){return x.trim();}).filter(Boolean);
+    var ms=splitMeanings(line.slice(eq+1));
     if(!w&&!ms.length)return;
     if(!curLesson)mkLesson('Lektion 1');
     curLesson.pairs.push(mkPair(w,ms));
