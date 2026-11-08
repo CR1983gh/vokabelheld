@@ -132,7 +132,7 @@ footer a:hover{color:#2f6fb3}
   <div class="view active" id="v-home">
     <h1 class="logo">🦸 Vokabel-Held</h1>
     <div class="card">
-      <button class="bigbtn" id="home-setname">Set laden</button>
+      <button class="bigbtn" id="home-setname">Buch laden</button>
       <p class="small center" id="home-setinfo" style="margin-top:8px"></p>
     </div>
     <div class="modes">
@@ -144,7 +144,10 @@ footer a:hover{color:#2f6fb3}
     <div class="card" style="margin-top:12px">
       <div class="row" style="margin-bottom:8px">
         <select id="home-select" class="grow"></select>
-        <button class="btn ghost small" id="home-newset">Neues Set</button>
+        <button class="btn ghost small" id="home-newset">Neues Buch</button>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <select id="home-lesson" class="grow" style="display:none"></select>
       </div>
       <div class="row" style="margin-bottom:8px">
         <button class="btn yellow grow" id="home-due">⏰ Drann heute</button>
@@ -227,11 +230,11 @@ footer a:hover{color:#2f6fb3}
     <div class="vcard" id="d-card">
       <div class="center">
         <button class="spkbtn" id="d-speak">🔁</button>
-        <p class="small" id="d-info" style="margin-top:6px">Höre zu &amp; tippe das englische Wort!</p>
+        <p class="small" id="d-info" style="margin-top:6px">Höre zu &amp; tippe das fremde Wort!</p>
         <div class="vword" id="d-peek" style="visibility:hidden;min-height:2.4rem">&nbsp;</div>
       </div>
       <div class="answerrow">
-        <input id="d-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="englisches Wort …">
+        <input id="d-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="fremdes Wort …">
       </div>
       <div class="fb" id="d-fb"></div>
       <div style="margin-top:12px"><button class="btn red" id="d-next" style="display:none">Weiter</button></div>
@@ -277,25 +280,36 @@ footer a:hover{color:#2f6fb3}
     <div class="card">
       <div class="setrow">
         <span>📚</span>
-        <input id="ed-setname" type="text" class="grow" placeholder="Set-Name">
+        <input id="ed-setname" type="text" class="grow" placeholder="Buch-Name">
+        <select id="ed-lang" style="width:auto"></select>
       </div>
       <div class="row" style="flex-wrap:wrap">
-        <button class="btn small" id="ed-add">＋ Vokabel hinzufügen</button>
-        <button class="btn ghost small" id="ed-newset">Neues Set</button>
-        <button class="btn red small" id="ed-delset">Set löschen</button>
+        <button class="btn ghost small" id="ed-newset">Neues Buch</button>
+        <button class="btn red small" id="ed-delset">Buch löschen</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:6px">
+        <select id="ed-lesson" class="grow"></select>
+        <button class="btn ghost small" id="ed-addlesson">＋ Lektion</button>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn small" id="ed-renlesson">✏️ Lektion umbenennen</button>
+        <button class="btn red small" id="ed-dellesson">Lektion löschen</button>
       </div>
     </div>
     <div class="card">
       <div id="ed-list"></div>
-      <p class="small center" id="ed-empty" style="display:none">Noch keine Vokabeln. Tippe auf „＋ Vokabel hinzufügen“.</p>
+      <p class="small center" id="ed-empty" style="display:none">Noch keine Wörter. Tippe auf „＋ Wort hinzufügen“.</p>
+      <button class="btn small" id="ed-add" style="width:100%;margin-top:6px">＋ Wort hinzufügen</button>
     </div>
     <div class="card">
       <div class="row" style="margin-bottom:8px">
         <button class="btn green small" id="ed-export">Sichern (.txt)</button>
-        <span class="small">Alle Sets als Datei</span>
+        <span class="small">Alle Bücher als Datei</span>
       </div>
-      <textarea id="ed-import" rows="4" placeholder="Sicherungs-Text hier einfügen …&#10;### Setname&#10;word = Übersetzung"></textarea>
-      <button class="btn small" id="ed-importbtn" style="margin-top:8px">Importieren (ersetzt aktives Set)</button>
+      <textarea id="ed-import" rows="4" placeholder="Sicherungs-Text hier einfügen …&#10;### Buchname [Sprache: Englisch]&#11;## Lektionsname&#10;word = Bedeutung 1; Bedeutung 2"></textarea>
+      <button class="btn small" id="ed-importbtn" style="margin-top:8px">Importieren (ersetzt alle Bücher)</button>
     </div>
   </div>
 
@@ -331,32 +345,79 @@ function levelUp(p){
 }
 function levelDown(p){ var l=p.level||0; p.level = (l<=0)?0:(l<=2?1:l-2); p.zuletzt=Date.now(); }
 
-/* ---------- Daten ---------- */
+/* ---------- Sprachen ---------- */
+var LANGS=[
+ {id:'en',name:'Englisch',flag:'🇬🇧',voice:'en'},
+ {id:'la',name:'Latein',flag:'🏛️',voice:'de'},
+ {id:'fr',name:'Französisch',flag:'🇫🇷',voice:'fr'},
+ {id:'it',name:'Italienisch',flag:'🇮🇹',voice:'it'},
+ {id:'es',name:'Spanisch',flag:'🇪🇸',voice:'es'}
+];
+function langOf(id){ for(var i=0;i<LANGS.length;i++) if(LANGS[i].id===id) return LANGS[i]; return LANGS[0]; }
+function langIcon(id){ var l=langOf(id); return l.flag+' '+l.name; }
+
+/* ---------- Daten: Buecher > Lektionen > Woerter (mehre Bedeutungen) ---------- */
 var SAMPLE=[
- ["time","die Zeit"],["friend","der Freund"],["school","die Schule"],["house","das Haus"],
- ["water","das Wasser"],["dog","der Hund"],["cat","die Katze"],["to run","rennen"],
+ ["time","die Zeit"],["friend","der Freund","Kumpel"],["school","die Schule"],["house","das Haus"],
+ ["water","das Wasser"],["dog","der Hund"],["cat","die Katze"],["to run","rennen","laufen"],
  ["to eat","essen"],["big","groß"],["small","klein"],["good","gut"],["bad","schlecht"],
  ["today","heute"],["tomorrow","morgen"],["monday","Montag"],["tuesday","Dienstag"],
  ["wednesday","Mittwoch"],["thursday","Donnerstag"],["friday","Freitag"],["saturday","Samstag"],
  ["sunday","Sonntag"],["red","rot"],["blue","blau"],["green","grün"],["one","eins"],
  ["five","fünf"],["ten","zehn"],["apple","der Apfel"],["bread","das Brot"],["milk","die Milch"]
 ];
+function mkPair(w,ms){ return {w:String(w||''),m:(ms||[]).slice(),level:0,falsch:0,zuletzt:null}; }
 function defaultData(){
-  return {sets:[{name:"Englisch – Klasse 5",pairs:SAMPLE.map(function(p){return {en:p[0],de:p[1],level:0,falsch:0,zuletzt:null};})}],aktiv:0};
+  return {books:[{name:"Klasse 5",lang:'en',lessons:[{name:"Lektion 1",pairs:SAMPLE.map(function(a){return mkPair(a[0],a.slice(1));})}]}],aktiv:0,lesson:-1};
+}
+function migrate(){
+  /* altes Modell {sets:[{name,pairs:[{en,de}]}]} -> Buecher-Modell */
+  if(Array.isArray(db&&db.sets)){
+    db.books=db.sets.map(function(st,i){
+      return {name:st.name,lang:i===0?'en':'en',lessons:[{name:'Lektion 1',pairs:(st.pairs||[]).map(function(p){
+        var ms=String(p.de||'').split(/[;\/]/).map(function(x){return x.trim();}).filter(Boolean);
+        return mkPair(p.en,ms);
+      })}]};
+    });
+    delete db.sets;
+    db.lesson=-1;
+  }
 }
 function ensure(){
-  if(!db||!Array.isArray(db.sets)||!db.sets.length){db=defaultData();}
-  if(typeof db.aktiv!=='number'||db.aktiv<0||db.aktiv>=db.sets.length)db.aktiv=0;
-  db.sets.forEach(function(s){
-    if(typeof s.name!=='string')s.name='Set';
-    if(!Array.isArray(s.pairs))s.pairs=[];
-    s.pairs.forEach(function(p){
-      p.en=String(p.en||'');p.de=String(p.de||'');
-      p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
-      p.falsch=parseInt(p.falsch,10)||0;
-      if(!('zuletzt' in p))p.zuletzt=null;
+  migrate();
+  if(!db||!Array.isArray(db.books)||!db.books.length){db=defaultData();}
+  if(typeof db.aktiv!=='number'||db.aktiv<0||db.aktiv>=db.books.length)db.aktiv=0;
+  if(!('lesson' in db))db.lesson=-1;
+  db.books.forEach(function(b){
+    if(typeof b.name!=='string')b.name='Buch';
+    if(!b.lang||!LANGS.some(function(L){return L.id===b.lang;}))b.lang='en';
+    if(!Array.isArray(b.lessons)||!b.lessons.length)b.lessons=[{name:'Lektion 1',pairs:[]}];
+    if(db.lesson>=b.lessons.length)db.lesson=-1;
+    b.lessons.forEach(function(l){
+      if(typeof l.name!=='string')l.name='Lektion';
+      if(!Array.isArray(l.pairs))l.pairs=[];
+      l.pairs.forEach(function(p){
+        p.w=String(p.w||'');
+        if(!Array.isArray(p.m))p.m=p.m?[String(p.m)]:[];
+        p.m=p.m.map(function(x){return String(x||'').trim();}).filter(Boolean);
+        p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
+        p.falsch=parseInt(p.falsch,10)||0;
+        if(!('zuletzt' in p))p.zuletzt=null;
+      });
     });
   });
+}
+function book(){return db.books[db.aktiv];}
+function curPairs(){
+  var b=book();
+  if(db.lesson>=0&&b.lessons[db.lesson])return b.lessons[db.lesson].pairs;
+  var all=[];b.lessons.forEach(function(l){all=all.concat(l.pairs);});return all;
+}
+function dispM(p){return p.m.join(' · ');}
+function isCorrect(val,p){
+  var v=norm(val);
+  for(var i=0;i<p.m.length;i++){ if(v===norm(p.m[i])) return true; }
+  return false;
 }
 function load(){
   try{
@@ -368,7 +429,7 @@ function load(){
 function save(){
   try{localStorage.setItem(LS,JSON.stringify(db));}catch(e){}
 }
-function set(){return db.sets[db.aktiv];}
+function set(){return book();}
 function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catch(e){return {};}}
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
@@ -390,25 +451,36 @@ function goHome(){
 
 /* ---------- Home ---------- */
 function renderHome(){
-  var s=set();
-  var learned=s.pairs.filter(isLTM).length;
-  var due=s.pairs.filter(isDue).length;
-  $('home-setname').textContent='▶ '+s.name;
-  $('home-setinfo').textContent=s.pairs.length+' Vokabeln · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
+  var ps=curPairs();
+  var learned=ps.filter(isLTM).length;
+  var due=ps.filter(isDue).length;
+  $('home-setname').textContent='▶ '+book().name+(db.lesson>=0?' · '+book().lessons[db.lesson].name:'');
+  $('home-setinfo').textContent=ps.length+' Wörter · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
   var sel=$('home-select');
   sel.innerHTML='';
-  db.sets.forEach(function(st,i){
+  db.books.forEach(function(b,i){
     var o=document.createElement('option');
-    o.value=i;o.textContent=st.name;
+    o.value=i;o.textContent=langIcon(b.lang)+' — '+b.name;
     if(i===db.aktiv)o.selected=true;
     sel.appendChild(o);
   });
+  var lsel=$('home-lesson');
+  lsel.innerHTML='';
+  var oAll=document.createElement('option');oAll.textContent='📖 Alle Lektionen';oAll.value='-1';lsel.appendChild(oAll);
+  book().lessons.forEach(function(l,i){
+    var o=document.createElement('option');o.value=i;o.textContent=l.name;lsel.appendChild(o);
+  });
+  lsel.value=String(db.lesson);
+  lsel.style.display=book().lessons.length>1?'':'none';
 }
 $('home-setname').addEventListener('click',function(){startLearn();});
 $('home-select').addEventListener('change',function(){
-  db.aktiv=parseInt(this.value,10)||0;save();renderHome();
+  db.aktiv=parseInt(this.value,10)||0;db.lesson=-1;save();renderHome();
 });
-$('home-newset').addEventListener('click',function(){newSet();});
+$('home-lesson').addEventListener('change',function(){
+  db.lesson=parseInt(this.value,10);if(isNaN(db.lesson))db.lesson=-1;save();renderHome();
+});
+$('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
 $('home-due').addEventListener('click',function(){startLearn(true);});
@@ -425,12 +497,13 @@ Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
 Array.prototype.forEach.call(document.querySelectorAll('[data-home]'),function(b){
   b.addEventListener('click',goHome);
 });
-function newSet(){
-  var name=prompt('Name des neuen Sets:','Neues Set');
+function newBook(){
+  var name=prompt('Name des neuen Buchs:','Neues Buch');
   if(name===null)return;
-  name=name.trim()||'Neues Set';
-  db.sets.push({name:name,pairs:[]});
-  db.aktiv=db.sets.length-1;save();
+  var li=prompt('Welche Sprache?\n'+LANGS.map(function(L,i){return (i+1)+'. '+L.flag+' '+L.name;}).join('\n'),'1');
+  var idx=Math.max(0,Math.min(LANGS.length-1,(parseInt(li,10)||1)-1));
+  db.books.push({name:name.trim()||'Neues Buch',lang:LANGS[idx].id,lessons:[{name:'Lektion 1',pairs:[]}]});
+  db.aktiv=db.books.length-1;db.lesson=-1;save();
   show('editor');
 }
 
@@ -457,8 +530,8 @@ function saveFlip(){ try{ localStorage.setItem('vhFlipMode',FLIP?'1':'0'); }catc
 function updateModeBtn(){ $('l-mode').textContent = FLIP?'🔄 Karte':'✍️ Tippen'; }
 function stopLearn(){L=null;}
 function startLearn(onlyDue){
-  var ps=set().pairs;
-  if(!ps.length){alert('Dieses Set hat noch keine Vokabeln. Füge welche hinzu!');show('editor');return;}
+  var ps=curPairs();
+  if(!ps.length){alert('In diesem Buch sind noch keine Wörter. Füge welche hinzu!');show('editor');return;}
   var idx=ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i]);});
   if(!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln dieses Sets sitzen im Langzeitgedächtnis.');return;}
   if(onlyDue){ idx=idx.filter(function(i){return isDue(ps[i]);});
@@ -472,12 +545,12 @@ function startLearn(onlyDue){
 function renderLearn(){
   if(!L)return;
   if(!L.queue.length){return learnEnd();}
-  var p=set().pairs[L.queue[0]];
+  var p=curPairs()[L.queue[0]];
   if(!p){L.queue.shift();return renderLearn();}
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
-  $('l-word').textContent=p.en;
+  $('l-word').textContent=p.w;
   $('l-hintline').textContent='';
   $('l-fb').innerHTML='';
   $('l-fb').className='fb';
@@ -497,9 +570,9 @@ function renderLearn(){
 $('l-mode').addEventListener('click',function(){ FLIP=!FLIP; saveFlip(); updateModeBtn(); if(L) renderLearn(); });
 $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
-  var p=set().pairs[L.cur]; if(!p)return;
+  var p=curPairs()[L.cur]; if(!p)return;
   this.style.display='none';
-  $('l-solution').textContent=p.de;
+  $('l-solution').textContent=dispM(p);
   $('l-solution').style.display='';
   $('l-knowrow').style.display='';
 });
@@ -507,7 +580,7 @@ $('l-know').addEventListener('click',function(){ flipJudge(true); });
 $('l-noknow').addEventListener('click',function(){ flipJudge(false); });
 function flipJudge(right){
   if(!L||L.locked)return;
-  var p=set().pairs[L.cur]; if(!p)return;
+  var p=curPairs()[L.cur]; if(!p)return;
   L.locked=true; L.done++;
   var card=$('l-card'), fb=$('l-fb');
   $('l-knowrow').style.display='none';
@@ -532,7 +605,7 @@ function flipJudge(right){
     p.falsch++;
     save();
     fb.className='fb bad';
-    fb.innerHTML='Nicht gewusst 😖<span class="sub">'+esc(p.en)+' = '+esc(p.de)+'</span>';
+    fb.innerHTML='Nicht gewusst 😖<span class="sub">'+esc(p.w)+' = '+esc(dispM(p))+'</span>';
     card.classList.add('bad','shake');
     renderLevelBar($('l-level'),p.level);
     updateLProg();
@@ -552,17 +625,17 @@ function renderLevelBar(el,lvl){
   el.innerHTML=h;
 }
 function updateLProg(){
-  var ps=set().pairs;
+  var ps=curPairs();
   var sum=0;ps.forEach(function(p){sum+=p.level;});
   var avg=ps.length?(sum/ps.length):0;
   $('l-prog').textContent=L.done+'/'+L.total+' · Level Ø '+avg.toFixed(1);
 }
 $('l-hint').addEventListener('click',function(){
   if(!L||L.locked||L.hint)return;
-  var p=set().pairs[L.cur];if(!p)return;
+  var p=curPairs()[L.cur];if(!p)return;
   L.hint=true;
   this.disabled=true;
-  $('l-hintline').textContent='Tipp: '+p.de.charAt(0)+'…  (zählt nicht als richtig)';
+  $('l-hintline').textContent='Tipp: '+(p.m[0]||'?').charAt(0)+'…  (zählt nicht als richtig)';
 });
 $('l-in').addEventListener('keydown',function(e){if(e.key==='Enter')learnCheck();});
 $('l-next').addEventListener('click',function(){
@@ -573,7 +646,7 @@ $('l-next').addEventListener('click',function(){
 });
 function learnCheck(){
   if(!L||L.locked)return;
-  var p=set().pairs[L.cur];if(!p)return;
+  var p=curPairs()[L.cur];if(!p)return;
   var val=$('l-in').value;
   if(!norm(val))return;
   L.locked=true;
@@ -581,11 +654,11 @@ function learnCheck(){
   $('l-in').disabled=true;
   var card=$('l-card');
   var fb=$('l-fb');
-  var right=norm(val)===norm(p.de);
+  var right=isCorrect(val,p);
   if(right&&L.hint){
     L.tips++;
     fb.className='fb';
-    fb.innerHTML='💡 Tipp genutzt – zählt nicht als richtig<span class="sub">Richtig: '+esc(p.de)+'</span>';
+    fb.innerHTML='💡 Tipp genutzt – zählt nicht als richtig<span class="sub">Richtig: '+esc(dispM(p))+'</span>';
     card.classList.add('bad');
   }else if(right){
     L.richtig++;
@@ -609,7 +682,7 @@ function learnCheck(){
     p.falsch++;
     save();
     fb.className='fb bad';
-    fb.innerHTML='Leider daneben 😖<span class="sub">Richtig: '+esc(p.de)+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
+    fb.innerHTML='Leider daneben 😖<span class="sub">Richtig: '+esc(dispM(p))+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
     card.classList.add('bad','shake');
     renderLevelBar($('l-level'),p.level);
     updateLProg();
@@ -636,13 +709,13 @@ function stopTimer(){
   if(T){T.dead=true;if(T.tick)clearTimeout(T.tick);T=null;}
 }
 function startTimer(){
-  var ps=set().pairs;
+  var ps=curPairs();
   var idx=[];
   ps.forEach(function(p,i){if(p.level>=1&&!isLTM(p))idx.push(i);});
   if(!idx.length){alert('Im Zeitfresser sind nur Vokabeln ab Level 1 dabei. Erst mal im Lernen üben!');return;}
   stopTimer();
   T={queue:shuffle(idx),orig:idx.slice(),score:0,cur:null,lock:false,dead:false,
-     endAt:Date.now()+90000,tick:null,setIndex:db.aktiv,setKey:set().name,hiddenAt:null};
+     endAt:Date.now()+90000,tick:null,setIndex:db.aktiv,setKey:book().name,hiddenAt:null};
   show('timer');
   $('t-result').style.display='none';
   $('t-card').style.display='';
@@ -664,12 +737,12 @@ function nextTimerCard(){
     T.queue=shuffle(T.orig);
   }
   var i=T.queue.shift();
-  var p=set().pairs[i];
+  var p=curPairs()[i];
   if(!p){return;}
   T.cur=i;T.lock=false;
   var card=$('t-card');
   card.classList.remove('bad','shake','flashok');
-  $('t-word').textContent=p.en;
+  $('t-word').textContent=p.w;
   $('t-fb').innerHTML='';$('t-fb').className='fb';
   var inp=$('t-in');inp.disabled=false;inp.value='';
   setTimeout(function(){try{inp.focus();}catch(e){}},30);
@@ -677,13 +750,13 @@ function nextTimerCard(){
 $('t-in').addEventListener('keydown',function(e){if(e.key==='Enter')timerCheck();});
 function timerCheck(){
   if(!T||T.lock)return;
-  var p=set().pairs[T.cur];if(!p)return;
+  var p=curPairs()[T.cur];if(!p)return;
   var val=$('t-in').value;
   if(!norm(val))return;
   T.lock=true;
   $('t-in').disabled=true;
   var card=$('t-card'),fb=$('t-fb');
-  if(norm(val)===norm(p.de)){
+  if(isCorrect(val,p)){
     T.score++;
     levelUp(p);
     save();
@@ -715,7 +788,7 @@ function endTimer(){
   if(neu){b[key]=score;saveBest(b);}
   var r=$('t-result');
   r.style.display='';
-  var name=(db.sets[idx]&&db.sets[idx].name)||'';
+  var name=(db.books[idx]&&db.books[idx].name)||'';
   r.innerHTML=resultHtml('Zeit ist um!',
     [['Punkte',score],['Bestwert „'+name+'“',Math.max(score,prev)]+(neu?' 🆕':'')],'⏱');
   wireResult(r,startTimer);
@@ -745,14 +818,15 @@ function stopDiktat(){
 function trySpeak(text){
   try{
     if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return false;
+    var prefix=langOf(book().lang).voice;
     var vs=[];
     try{vs=speechSynthesis.getVoices()||[];}catch(e){vs=[];}
     var v=null;
     for(var i=0;i<vs.length;i++){
-      if(/^en(-|_|$)/i.test(vs[i].lang||'')){v=vs[i];break;}
+      if(new RegExp('^'+prefix+'(-|_|$)','i').test(vs[i].lang||'')){v=vs[i];break;}
     }
     var u=new SpeechSynthesisUtterance(text);
-    u.lang=v?v.lang:'en-US';
+    u.lang=v?v.lang:(prefix==='de'?'de-DE':prefix+'');
     if(v)u.voice=v;
     u.rate=0.9;
     speechSynthesis.cancel();
@@ -781,8 +855,8 @@ function peekWord(text){
   },1000);
 }
 function startDiktat(){
-  var ps=set().pairs;
-  if(!ps.length){alert('Dieses Set hat noch keine Vokabeln. Füge welche hinzu!');show('editor');return;}
+  var ps=curPairs();
+  if(!ps.length){alert('In diesem Buch sind noch keine Wörter. Füge welche hinzu!');show('editor');return;}
   if(speechOk===null){
     speechOk=false;
     try{
@@ -797,13 +871,13 @@ function startDiktat(){
   show('diktat');
   $('d-result').style.display='none';
   $('d-card').style.display='';
-  $('d-info').textContent=speechOk?'Höre zu & tippe das englische Wort!':'Keine Stimme verfügbar – das Wort wird kurz gezeigt.';
+  $('d-info').textContent=speechOk?'Höre zu & tippe das fremde Wort!':'Keine Stimme verfügbar – das Wort wird kurz gezeigt.';
   renderDiktat();
 }
 function renderDiktat(){
   if(!D)return;
   if(!D.queue.length)return diktatEnd();
-  var p=set().pairs[D.queue[0]];
+  var p=curPairs()[D.queue[0]];
   if(!p){D.queue.shift();return renderDiktat();}
   D.cur=D.queue.shift();D.locked=false;
   var card=$('d-card');
@@ -812,7 +886,7 @@ function renderDiktat(){
   $('d-next').style.display='none';
   var inp=$('d-in');inp.disabled=false;inp.value='';
   updateDProg();
-  speakOrUpdate(p.en);
+  speakOrUpdate(p.w);
   setTimeout(function(){try{inp.focus();}catch(e){}},120);
 }
 function updateDProg(){
@@ -820,8 +894,8 @@ function updateDProg(){
 }
 $('d-speak').addEventListener('click',function(){
   if(!D)return;
-  var p=set().pairs[D.cur];if(!p)return;
-  speakOrUpdate(p.en);
+  var p=curPairs()[D.cur];if(!p)return;
+  speakOrUpdate(p.w);
   var inp=$('d-in');setTimeout(function(){try{inp.focus();}catch(e){}},50);
 });
 $('d-in').addEventListener('keydown',function(e){if(e.key==='Enter')diktatCheck();});
@@ -833,13 +907,13 @@ $('d-next').addEventListener('click',function(){
 });
 function diktatCheck(){
   if(!D||D.locked)return;
-  var p=set().pairs[D.cur];if(!p)return;
+  var p=curPairs()[D.cur];if(!p)return;
   var val=$('d-in').value;
   if(!norm(val))return;
   D.locked=true;D.done++;
   $('d-in').disabled=true;
   var card=$('d-card'),fb=$('d-fb');
-  if(norm(val)===norm(p.en)){
+  if(norm(val)===norm(p.w)){
     D.richtig++;
     levelUp(p);
     save();
@@ -857,7 +931,7 @@ function diktatCheck(){
     p.falsch++;
     save();
     fb.className='fb bad';
-    fb.innerHTML='So wird’s geschrieben:<span class="sub">'+esc(p.en)+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
+    fb.innerHTML='So wird’s geschrieben:<span class="sub">'+esc(p.w)+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
     card.classList.add('bad','shake');
     updateDProg();
     var pos=Math.min(2,D.queue.length);
@@ -887,7 +961,7 @@ var STUFE_INFO=[
   ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
 ];
 function renderReport(){
-  var ps=set().pairs;
+  var ps=curPairs();
   var groups=[[],[],[],[],[],[],[],[]];
   var dueCount=0;
   ps.forEach(function(p){
@@ -909,12 +983,12 @@ function renderReport(){
       h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
       g.forEach(function(p,gi){
         if(k===7){
-          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.en)+' <b style="color:#6b7f95">'+esc(p.de)+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
+          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#6b7f95">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
           return;
         }
         var over = k>0 && isDue(p);
         var days = (!p.zuletzt||k===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
-        h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.en)+'<b style="color:#6b7f95"> · '+esc(p.de)+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#6b7f95">in '+days+'d</span>':'')+'</span>';
+        h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#6b7f95"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#6b7f95">in '+days+'d</span>':'')+'</span>';
       });
       h+='</div>';
     }
@@ -932,8 +1006,8 @@ function renderReport(){
 /* ---------- DUELL ---------- */
 var DU=null;
 function startDuel(){
-  var ps=set().pairs;
-  if(ps.length<2){alert('Für das Duell brauchst du mindestens 2 Vokabeln im Set.');return;}
+  var ps=curPairs();
+  if(ps.length<2){alert('Für das Duell brauchst du mindestens 2 Wörter.');return;}
   var q=shuffle(ps.map(function(_,i){return i;}));
   var total=Math.min(20,q.length);
   DU={queue:q.slice(0,total),total:total,round:0,p:[0,0],player:0,cur:null,phase:'q',locked:false};
@@ -947,14 +1021,14 @@ function duelQuestion(){
   if(!DU)return;
   if(DU.round>=DU.total)return duelEnd();
   var i=DU.queue[DU.round];
-  var p=set().pairs[i];
+  var p=curPairs()[i];
   if(!p){DU.round++;return duelQuestion();}
   DU.cur=i;DU.locked=false;
   $('u-card').style.display='';
   $('u-pass').style.display='none';
   $('u-card').classList.remove('ok','bad','shake','flashok');
   $('u-who').textContent=(DU.player===0?'🔵 Spieler 1':'🔴 Spieler 2')+' ist dran:';
-  $('u-word').textContent=p.en;
+  $('u-word').textContent=p.w;
   $('u-fb').innerHTML='';$('u-fb').className='fb';
   $('u-cont').style.display='none';
   $('u-s1').textContent=DU.p[0];
@@ -980,20 +1054,20 @@ $('u-pass').addEventListener('click',function(){
 });
 function duelCheck(){
   if(!DU||DU.locked)return;
-  var p=set().pairs[DU.cur];if(!p)return;
+  var p=curPairs()[DU.cur];if(!p)return;
   var val=$('u-in').value;
   if(!norm(val))return;
   DU.locked=true;
   $('u-in').disabled=true;
   var card=$('u-card'),fb=$('u-fb');
   /* Level wird im Duell NICHT verändert */
-  if(norm(val)===norm(p.de)){
+  if(isCorrect(val,p)){
     DU.p[DU.player]++;
     fb.className='fb ok';fb.textContent='Punkt! ✅';
     card.classList.add('ok','flashok');
   }else{
     fb.className='fb bad';
-    fb.innerHTML='Kein Punkt 😖<span class="sub">Richtig: '+esc(p.de)+'</span>';
+    fb.innerHTML='Kein Punkt 😖<span class="sub">Richtig: '+esc(dispM(p))+'</span>';
     card.classList.add('bad','shake');
   }
   $('u-s1').textContent=DU.p[0];
@@ -1018,75 +1092,155 @@ function duelEnd(){
 
 /* ---------- EDITOR ---------- */
 var delSetArmed=false,delSetTimer=null;
+function edLessonIdx(){ return db.lesson>=0?db.lesson:0; }
+function ensureLesson(){ var b=book(); if(db.lesson>=b.lessons.length)db.lesson=0; }
 function renderEd(){
-  var s=set();
-  $('ed-setname').value=s.name;
+  ensureLesson();
+  var b=book();
+  $('ed-setname').value=b.name;
+  /* Sprache */
+  var lsel=$('ed-lang');
+  lsel.innerHTML='';
+  LANGS.forEach(function(L){
+    var o=document.createElement('option');o.value=L.id;o.textContent=L.flag+' '+L.name;
+    if(L.id===b.lang)o.selected=true;
+    lsel.appendChild(o);
+  });
+  /* Lektionen */
+  var les=$('ed-lesson');
+  les.innerHTML='';
+  b.lessons.forEach(function(l,i){
+    var o=document.createElement('option');o.value=i;o.textContent=l.name+' ('+l.pairs.length+')';
+    if(i===edLessonIdx())o.selected=true;
+    les.appendChild(o);
+  });
+  /* Woerter der aktiven Lektion */
+  var L=b.lessons[edLessonIdx()];
   var list=$('ed-list');
   list.innerHTML='';
-  $('ed-empty').style.display=s.pairs.length?'none':'';
-  s.pairs.forEach(function(p,idx){
+  $('ed-empty').style.display=L.pairs.length?'none':'';
+  L.pairs.forEach(function(p,idx){
+    var wrap=document.createElement('div');
+    wrap.style.marginBottom='8px';
     var row=document.createElement('div');
     row.className='edrow';
-    var en=document.createElement('input');
-    en.type='text';en.value=p.en;en.placeholder='englisch';
-    en.autocomplete='off';en.spellcheck=false;
-    en.addEventListener('input',function(){p.en=this.value;save();});
+    var w=document.createElement('input');
+    w.type='text';w.value=p.w;w.placeholder=langOf(b.lang).name;
+    w.autocomplete='off';w.spellcheck=false;
+    w.addEventListener('input',function(){p.w=this.value;save();});
     var arrow=document.createElement('span');
     arrow.className='arrow';arrow.textContent='→';
-    var de=document.createElement('input');
-    de.type='text';de.value=p.de;de.placeholder='deutsch';
-    de.autocomplete='off';de.spellcheck=false;
-    de.addEventListener('input',function(){p.de=this.value;save();});
+    var m=document.createElement('input');
+    m.type='text';m.value=p.m[0]||'';m.placeholder='1. Bedeutung';
+    m.autocomplete='off';m.spellcheck=false;
+    m.addEventListener('input',function(){p.m[0]=this.value;save();});
     var badge=document.createElement('span');
-    badge.className='badge';badge.title='Level '+p.level;
+    badge.className='badge';badge.title='Stufe '+p.level;
     badge.textContent=levelBadge(p.level);
     var del=document.createElement('button');
-    del.className='del';del.textContent='🗑';del.title='Löschen';
+    del.className='del';del.textContent='🗑';del.title='Wort löschen';
     del.addEventListener('click',function(){
-      set().pairs.splice(idx,1);save();renderEd();
+      L.pairs.splice(idx,1);save();renderEd();
     });
-    row.appendChild(en);row.appendChild(arrow);row.appendChild(de);
+    row.appendChild(w);row.appendChild(arrow);row.appendChild(m);
     row.appendChild(badge);row.appendChild(del);
-    list.appendChild(row);
+    wrap.appendChild(row);
+    /* weitere Bedeutungen */
+    for(var k=1;k<Math.max(p.m.length,2);k++){
+      (function(kk){
+        var r2=document.createElement('div');
+        r2.className='edrow';r2.style.marginTop='4px';
+        var sp=document.createElement('span');
+        sp.className='arrow';sp.textContent=kk<p.m.length?'·':'＋';
+        var mi=document.createElement('input');
+        mi.type='text';mi.value=p.m[kk]||'';mi.placeholder='Bedeutung '+(kk+1);
+        mi.autocomplete='off';mi.spellcheck=false;
+        mi.addEventListener('input',function(){
+          p.m[kk]=this.value;
+          /* Lücken schließen */
+          p.m=p.m.map(function(x){return String(x||'');});
+          while(p.m.length>1&&!p.m[p.m.length-1])p.m.pop();
+          save();
+        });
+        var d2=document.createElement('button');
+        d2.className='del';d2.textContent=(kk<p.m.length)?'🗑':'';
+        d2.style.visibility=(kk<p.m.length)?'':'hidden';
+        d2.addEventListener('click',function(){
+          p.m.splice(kk,1);save();renderEd();
+        });
+        r2.appendChild(sp);r2.appendChild(mi);r2.appendChild(d2);
+        wrap.appendChild(r2);
+      })(k);
+    }
+    list.appendChild(wrap);
   });
 }
-$('ed-setname').addEventListener('input',function(){
-  set().name=this.value||'Set';save();
+$('ed-setname').addEventListener('input',function(){ book().name=this.value||'Buch';save(); });
+$('ed-lang').addEventListener('change',function(){ book().lang=this.value;save();renderEd();renderHome(); });
+$('ed-lesson').addEventListener('change',function(){ db.lesson=parseInt(this.value,10)||0;save();renderEd(); });
+$('ed-addlesson').addEventListener('click',function(){
+  var name=prompt('Name der neuen Lektion:','Lektion '+(book().lessons.length+1));
+  if(name===null)return;
+  book().lessons.push({name:name.trim()||('Lektion '+(book().lessons.length+1)),pairs:[]});
+  db.lesson=book().lessons.length-1;save();renderEd();
+});
+$('ed-renlesson').addEventListener('click',function(){
+  ensureLesson();
+  var l=book().lessons[edLessonIdx()];
+  var name=prompt('Name der Lektion:',l.name);
+  if(name===null)return;
+  l.name=name.trim()||l.name;save();renderEd();
+});
+$('ed-dellesson').addEventListener('click',function(){
+  ensureLesson();
+  var b=book();
+  if(b.lessons.length<=1){alert('Die letzte Lektion kann nicht gelöscht werden.');return;}
+  var l=b.lessons[edLessonIdx()];
+  if(!confirm('Lektion „'+l.name+'“ mit '+l.pairs.length+' Wörtern löschen?'))return;
+  b.lessons.splice(edLessonIdx(),1);
+  db.lesson=0;save();renderEd();
 });
 $('ed-add').addEventListener('click',function(){
-  set().pairs.unshift({en:'',de:'',level:0,falsch:0,zuletzt:null});
+  ensureLesson();
+  var b=book(),L=b.lessons[edLessonIdx()];
+  if(db.lesson<0)db.lesson=0;
+  L.pairs.unshift(mkPair('',[]));
   save();renderEd();
   var first=$('ed-list').querySelector('input');
   if(first)setTimeout(function(){try{first.focus();}catch(e){}},50);
 });
-$('ed-newset').addEventListener('click',function(){newSet();});
+$('ed-newset').addEventListener('click',function(){ newBook(); });
 $('ed-delset').addEventListener('click',function(){
-  if(db.sets.length<=1){alert('Das letzte Set kann nicht gelöscht werden.');return;}
+  if(db.books.length<=1){alert('Das letzte Buch kann nicht gelöscht werden.');return;}
   if(!delSetArmed){
     delSetArmed=true;
     this.textContent='Erneut tippen zum Löschen!';
     var btn=this;
     if(delSetTimer)clearTimeout(delSetTimer);
     delSetTimer=setTimeout(function(){
-      delSetArmed=false;btn.textContent='Set löschen';
+      delSetArmed=false;btn.textContent='Buch löschen';
     },3000);
     return;
   }
   delSetArmed=false;
   if(delSetTimer)clearTimeout(delSetTimer);
-  this.textContent='Set löschen';
-  var name=set().name;
-  if(!confirm('Set „'+name+'“ wirklich löschen?'))return;
-  db.sets.splice(db.aktiv,1);
-  db.aktiv=Math.max(0,Math.min(db.aktiv,db.sets.length-1));
+  this.textContent='Buch löschen';
+  var name=book().name;
+  if(!confirm('Buch „'+name+'“ wirklich löschen?'))return;
+  db.books.splice(db.aktiv,1);
+  db.aktiv=Math.max(0,Math.min(db.aktiv,db.books.length-1));
+  db.lesson=-1;
   save();renderEd();
 });
 $('ed-export').addEventListener('click',function(){
   var lines=[];
-  db.sets.forEach(function(s){
-    lines.push('### '+s.name);
-    s.pairs.forEach(function(p){
-      if(String(p.en).trim()||String(p.de).trim())lines.push(p.en+' = '+p.de);
+  db.books.forEach(function(b){
+    lines.push('### '+b.name+' [Sprache: '+langOf(b.lang).name+']');
+    b.lessons.forEach(function(l){
+      lines.push('## '+l.name);
+      l.pairs.forEach(function(p){
+        if(String(p.w).trim()||p.m.length)lines.push(p.w+' = '+p.m.join('; '));
+      });
     });
     lines.push('');
   });
@@ -1104,40 +1258,46 @@ $('ed-export').addEventListener('click',function(){
 $('ed-importbtn').addEventListener('click',function(){
   var txt=$('ed-import').value;
   if(!txt.trim()){alert('Bitte zuerst den Sicherungs-Text oben einfügen.');return;}
-  var sets=parseExport(txt);
-  var useName=null,usePairs=null;
-  if(sets.length){
-    useName=sets[0].name;usePairs=sets[0].pairs;
-  }else{
-    alert('Keine Vokabeln im Text gefunden. Format: „en = de“ pro Zeile, Sets mit „### Setname“.');
-    return;
-  }
-  if(!confirm('Set „'+set().name+'“ mit '+usePairs.length+' Vokabeln (als „'+useName+'“) ersetzen?'))return;
-  set().name=useName||set().name;
-  set().pairs=usePairs;
+  var books=parseExport(txt);
+  if(!books.length){alert('Keine Wörter im Text gefunden. Format: „wort = Bedeutung 1; Bedeutung 2“ pro Zeile, Bücher mit „### Buchname“, Lektionen mit „## Lektionsname“.');return;}
+  var anzahl=0;books.forEach(function(b){b.lessons.forEach(function(l){anzahl+=l.pairs.length;});});
+  if(!confirm(books.length+' Buch/Bücher mit '+anzahl+' Wörtern importieren?\n(Damit werden deine aktuellen Bücher ERSETZT — vorher sichern!)'))return;
+  db.books=books;db.aktiv=0;db.lesson=-1;
   save();
   $('ed-import').value='';
-  renderEd();
+  renderEd();renderHome();
 });
 function parseExport(txt){
-  var sets=[],cur=null;
+  var books=[],curBook=null,curLesson=null;
+  function mkBook(name,lang){ curBook={name:name||'Importiertes Buch',lang:lang||'en',lessons:[]};books.push(curBook);curLesson=null; }
+  function mkLesson(name){ if(!curBook)mkBook('Importiertes Buch','en'); curLesson={name:name||'Lektion 1',pairs:[]};curBook.lessons.push(curLesson); }
   txt.split(/\r?\n/).forEach(function(line){
     line=line.trim();
     if(!line)return;
     var m=line.match(/^###\s*(.*)$/);
     if(m){
-      cur={name:m[1].trim()||'Importiertes Set',pairs:[]};
-      sets.push(cur);
+      var raw=m[1].trim(),lang='en';
+      var lm=raw.match(/\[Sprache:\s*([^\]]+)\]/);
+      if(lm){
+        var lname=lm[1].trim().toLowerCase();
+        LANGS.forEach(function(L){ if(L.name.toLowerCase()===lname)lang=L.id; });
+        raw=raw.replace(/\[Sprache:[^\]]+\]/,'').trim();
+      }
+      mkBook(raw||'Importiertes Buch',lang);
       return;
     }
+    var l2=line.match(/^##\s*(.*)$/);
+    if(l2){ mkLesson(l2[1].trim()||'Lektion 1'); return; }
     var eq=line.indexOf('=');
     if(eq<0)return;
-    var en=line.slice(0,eq).trim(),de=line.slice(eq+1).trim();
-    if(!en&&!de)return;
-    if(!cur){cur={name:'Importiertes Set',pairs:[]};sets.push(cur);}
-    cur.pairs.push({en:en,de:de,level:0,falsch:0,zuletzt:null});
+    var w=line.slice(0,eq).trim();
+    var ms=line.slice(eq+1).split(';').map(function(x){return x.trim();}).filter(Boolean);
+    if(!w&&!ms.length)return;
+    if(!curLesson)mkLesson('Lektion 1');
+    curLesson.pairs.push(mkPair(w,ms));
   });
-  return sets;
+  books.forEach(function(b){ if(!b.lessons.length)b.lessons.push({name:'Lektion 1',pairs:[]}); });
+  return books;
 }
 
 /* ---------- Stimmen nachladen (iOS/Chrome laden async) ---------- */
