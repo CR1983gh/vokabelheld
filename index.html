@@ -120,13 +120,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .result td:first-child{text-align:left;font-weight:700;color:var(--ink2)}
 .result td:last-child{text-align:right;font-weight:800}
 /* Editor */
-.edrow{display:grid;grid-template-columns:1fr 22px 1fr auto auto;gap:6px;align-items:center;margin-bottom:8px}
-.edrow.sub{grid-template-columns:22px 1fr auto}
-.edrow.sub input{padding:11px 10px}
+.edrow{display:grid;grid-template-columns:1fr 22px 1fr 36px 44px 36px;gap:6px;align-items:center;margin-bottom:6px}
+.edrow.sub{margin-top:5px}
+.edrow.sub .spacer{grid-column:1/3}
+.addm{border:1.5px dashed #b8c2cf;background:#fff;color:#0850aa;border-radius:10px;width:36px;height:36px;font-size:1.15rem;font-weight:800;cursor:pointer;line-height:1;padding:0}
+.addm:active{background:#eef4fb}
+.edrow .delcol{display:flex;gap:4px;align-items:center}
 .edrow input{padding:10px;font-size:.95rem;min-width:0}
 .edrow .arrow{color:var(--ink2);text-align:center;font-weight:800}
-.badge{font-size:.8rem;white-space:nowrap;background:#fff3d6;border-radius:999px;padding:5px 8px;font-weight:800;color:#7a5200}
-.del{border:none;background:#fdeceE;color:var(--red);border-radius:10px;padding:9px;font-size:.95rem;cursor:pointer;font-weight:800}
+.badge{font-size:.8rem;white-space:nowrap;background:#fff3d6;border-radius:999px;padding:5px 0;font-weight:800;color:#7a5200;text-align:center;overflow:hidden}
+.del{border:none;background:#fdeceE;color:var(--red);border-radius:10px;width:36px;height:36px;font-size:.95rem;cursor:pointer;font-weight:800;padding:0;display:flex;align-items:center;justify-content:center}
 .setrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 hr.sep{border:none;border-top:1px solid var(--hairline);margin:14px 0}
 .small{font-size:.82rem;color:var(--ink2)}
@@ -427,7 +430,7 @@ function curPairs(){
   if(db.lesson>=0&&b.lessons[db.lesson])return b.lessons[db.lesson].pairs;
   var all=[];b.lessons.forEach(function(l){all=all.concat(l.pairs);});return all;
 }
-function dispM(p){return p.m.join(' · ');}
+function dispM(p){return p.m.filter(function(x){return String(x).trim();}).join(' · ');}
 function isCorrect(val,p){
   var v=norm(val);
   for(var i=0;i<p.m.length;i++){ if(v===norm(p.m[i])) return true; }
@@ -1135,7 +1138,9 @@ function renderEd(){
   $('ed-empty').style.display=L.pairs.length?'none':'';
   L.pairs.forEach(function(p,idx){
     var wrap=document.createElement('div');
-    wrap.style.marginBottom='8px';
+    wrap.style.marginBottom='10px';
+    if(!p.m.length)p.m.push('');
+    /* Hauptzeile: Wort -> 1. Bedeutung [＋] [Stufe] [Muel] */
     var row=document.createElement('div');
     row.className='edrow';
     var w=document.createElement('input');
@@ -1148,6 +1153,7 @@ function renderEd(){
     m.type='text';m.value=p.m[0]||'';m.placeholder='1. Bedeutung';
     m.autocomplete='off';m.spellcheck=false;
     m.addEventListener('input',function(){p.m[0]=this.value;save();});
+    var plus=mkPlus(p);
     var badge=document.createElement('span');
     badge.className='badge';badge.title='Stufe '+p.level;
     badge.textContent=levelBadge(p.level);
@@ -1157,38 +1163,57 @@ function renderEd(){
       L.pairs.splice(idx,1);save();renderEd();
     });
     row.appendChild(w);row.appendChild(arrow);row.appendChild(m);
-    row.appendChild(badge);row.appendChild(del);
+    row.appendChild(plus);row.appendChild(badge);row.appendChild(del);
     wrap.appendChild(row);
-    /* weitere Bedeutungen */
-    for(var k=1;k<Math.max(p.m.length,2);k++){
+    /* weitere Bedeutungen: eine Zeile proexistingender Bedeutung, ＋ immer hinter der letzten */
+    for(var k=1;k<p.m.length;k++){
       (function(kk){
+        var last=(kk===p.m.length-1);
         var r2=document.createElement('div');
-        r2.className='edrow sub';r2.style.marginTop='5px';
+        r2.className='edrow sub';
         var sp=document.createElement('span');
-        sp.className='arrow';sp.textContent=kk<p.m.length?'·':'＋';
+        sp.className='spacer';
         var mi=document.createElement('input');
         mi.type='text';mi.value=p.m[kk]||'';mi.placeholder='Bedeutung '+(kk+1);
         mi.autocomplete='off';mi.spellcheck=false;
-        mi.addEventListener('input',function(){
-          p.m[kk]=this.value;
-          /* Lücken schließen */
-          p.m=p.m.map(function(x){return String(x||'');});
-          while(p.m.length>1&&!p.m[p.m.length-1])p.m.pop();
-          save();
-        });
+        mi.addEventListener('input',function(){p.m[kk]=this.value;save();});
+        var p2=last?mkPlus(p):document.createElement('span');
+        if(!last)p2.className='addm';
+        if(!last)p2.style.visibility='hidden';
         var d2=document.createElement('button');
-        d2.className='del';d2.textContent=(kk<p.m.length)?'🗑':'';
-        d2.style.visibility=(kk<p.m.length)?'':'hidden';
+        d2.className='del';d2.textContent='🗑';d2.title='Bedeutung löschen';
         d2.addEventListener('click',function(){
-          p.m.splice(kk,1);save();renderEd();
+          p.m.splice(kk,1);
+          if(!p.m.length)p.m.push('');
+          save();renderEd();
         });
-        r2.appendChild(sp);r2.appendChild(mi);r2.appendChild(d2);
+        r2.appendChild(sp);r2.appendChild(mi);r2.appendChild(p2);
+        var bc=document.createElement('span');r2.appendChild(bc);
+        r2.appendChild(d2);
         wrap.appendChild(r2);
       })(k);
     }
     list.appendChild(wrap);
   });
 }
+function mkPlus(p){
+  var b=document.createElement('button');
+  b.className='addm';b.textContent='＋';b.title='Weitere Bedeutung';
+  b.addEventListener('click',function(){
+    p.m.push('');save();renderEd();
+    /* neu createdes letztes Bedeutungs-Feld fokussieren */
+    var rows=$('ed-list').querySelectorAll('.edrow');
+    var ins=[];rows.forEach(function(r){var i=r.querySelector('input');if(i)ins.push(i);});
+    /* das passende Feld: Anzahl Felder bis inkl. neuer Row — einfacher: letztes leere Feld mit placeholder Bedeutung N */
+    var target=null;
+    document.querySelectorAll('#ed-list input').forEach(function(el){
+      if(el.placeholder==='Bedeutung '+p.m.length)target=el;
+    });
+    if(target)setTimeout(function(){try{target.focus();}catch(e){}},50);
+  });
+  return b;
+}
+
 $('ed-setname').addEventListener('input',function(){ book().name=this.value||'Buch';save(); });
 $('ed-lang').addEventListener('change',function(){ book().lang=this.value;save();renderEd();renderHome(); });
 $('ed-lesson').addEventListener('change',function(){ db.lesson=parseInt(this.value,10)||0;save();renderEd(); });
