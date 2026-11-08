@@ -162,10 +162,7 @@ footer a:hover{color:var(--accent)}
   <div class="view active" id="v-home">
     <h1 class="logo">🦸 Vokabel-Held</h1>
     <button class="duebtn" id="home-due">⏰ …</button>
-    <div class="card" style="margin-top:12px">
-      <button class="bigbtn" id="home-setname">Buch laden</button>
-      <p class="small center" id="home-setinfo" style="margin-top:8px"></p>
-    </div>
+    <p class="small center" id="home-setinfo" style="margin:6px 0 2px"></p>
     <div class="modes">
       <button class="mode" data-go="learn"><span class="ic">📚</span>Lernen</button>
       <button class="mode" data-go="timer"><span class="ic">🎯</span>Zeitfresser</button>
@@ -543,10 +540,8 @@ function renderHome(){
   var ps=poolPairs();
   var learned=ps.filter(isLTM).length;
   var due=ps.filter(isDue).length;
-  var bn=$('home-setname');
-  bn.innerHTML='▶ '+langOf(book().lang).flag+' '+esc(book().name)+(db.lesson>=0?'<br><span style="font-size:.85rem;font-weight:600;opacity:.85">'+esc(book().lessons[db.lesson].name)+'</span>':'');
   var tot=poolCountTotal();
-  $('home-setinfo').textContent=ps.length+(tot!==ps.length?'/'+tot:'')+' im Pool · '+learned+' im Langzeitgedächtnis 🧠';
+  $('home-setinfo').textContent=langOf(book().lang).flag+' '+book().name+' · '+ps.length+(tot!==ps.length?'/'+tot:'')+' im Pool · '+learned+' im Langzeitgedächtnis 🧠';
   /* Faelig-Button */
   var db2=$('home-due');
   db2.classList.remove('calm');
@@ -556,9 +551,12 @@ function renderHome(){
   }else if(due>0){
     db2.textContent='⏰ Heute fällig: '+due+' '+(due===1?'Wort':'Wörter')+' — jetzt üben!';
   }else{
+    var spare=nextSpares(10);
     var naechster=null;
     ps.forEach(function(p){ if(isLTM(p))return; var d=dueAt(p); if(naechster===null||d<naechster)naechster=d; });
-    if(naechster===null){ db2.classList.add('calm'); db2.textContent='🧠 Alles im Langzeitgedächtnis!'; }
+    if(spare.length){
+      db2.textContent='➕ Noch '+spare.length+' '+(spare.length===1?'Wort':'Wörter')+' üben';
+    }else if(naechster===null){ db2.classList.add('calm'); db2.textContent='🧠 Alles im Langzeitgedächtnis!'; }
     else{
       var tage=Math.max(1,Math.ceil((naechster-Date.now())/DAY));
       db2.classList.add('calm');
@@ -582,7 +580,6 @@ function renderHome(){
   lsel.value=String(db.lesson);
   lsel.style.display='none'; /* Auswahl uebernimmt 'Mein Wortschatz' */
 }
-$('home-setname').addEventListener('click',function(){startLearn();});
 $('home-select').addEventListener('change',function(){
   db.aktiv=parseInt(this.value,10)||0;db.lesson=-1;save();renderHome();
 });
@@ -592,7 +589,14 @@ $('home-lesson').addEventListener('change',function(){
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
-$('home-due').addEventListener('click',function(){startLearn(true);});
+$('home-due').addEventListener('click',function(){
+  var ps=poolPairs();
+  var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
+  if(due>0){startLearn(true);return;}
+  var spare=nextSpares(10);
+  if(spare.length){startLearn(false,spare);return;}
+  startLearn(true);
+});
 updateModeBtn();
 Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
   b.addEventListener('click',function(){
@@ -809,12 +813,10 @@ function learnEnd(){
   var emoji=L.falsch===0?'🏅':'🎉';
   r.innerHTML=resultHtml('Session geschafft!',
     [['Richtig ✅',L.richtig],['Falsch ❌',L.falsch],['Tips 💡',L.tips]],emoji);
-  /* noch nicht faellige Woerter zum freiwilligen Ueben */
-  var ps=poolPairs();
-  var spare=[];
-  ps.forEach(function(p,i){ if(!isLTM(p)&&!isDue(p))spare.push([dueAt(p),i]); });
-  spare.sort(function(a,b){return a[0]-b[0];});
-  spare=spare.slice(0,19).map(function(x){return x[1];});
+  /* "Nochmal!" raus — stattdessen 10 freiwillige Woerter */
+  var again=r.querySelector('#__again');
+  if(again)again.parentNode.removeChild(again);
+  var spare=nextSpares(10);
   if(spare.length){
     var extra=document.createElement('button');
     extra.className='btn green';
@@ -824,6 +826,13 @@ function learnEnd(){
     r.querySelector('.row').insertBefore(extra,homeBtn);
   }
   wireResult(r,startLearn);
+}
+function nextSpares(n){
+  var ps=poolPairs();
+  var out=[];
+  ps.forEach(function(p,i){ if(!isLTM(p)&&!isDue(p))out.push([dueAt(p),i]); });
+  out.sort(function(a,b){return a[0]-b[0];});
+  return out.slice(0,n).map(function(x){return x[1];});
 }
 
 /* ---------- ZEITFRESSER ---------- */
