@@ -325,7 +325,10 @@ var DUE=[0,0,1,3,9,29,90];
 var DAY=86400000;
 function dueAt(p){ if(!p.zuletzt) return 0; return p.zuletzt + (DUE[Math.max(0,Math.min(6,p.level||0))]*DAY); }
 function isDue(p){ return !p.zuletzt || Date.now()>=dueAt(p); }
-function levelUp(p){ p.level=Math.min(7,(p.level||0)+1); p.zuletzt=Date.now(); }
+function levelUp(p){
+  if(!isDue(p)) return false; /* zu frueh: Stufe bleibt, Faelligkeit unveraendert */
+  p.level=Math.min(7,(p.level||0)+1); p.zuletzt=Date.now(); return true;
+}
 function levelDown(p){ var l=p.level||0; p.level = (l<=0)?0:(l<=2?1:l-2); p.zuletzt=Date.now(); }
 
 /* ---------- Daten ---------- */
@@ -508,13 +511,12 @@ function flipJudge(right){
   L.locked=true; L.done++;
   var card=$('l-card'), fb=$('l-fb');
   $('l-knowrow').style.display='none';
-  p.zuletzt=Date.now();
   if(right){
     L.richtig++;
-    levelUp(p);
+    var up=levelUp(p);
     save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':'Gewusst! ✅';
+    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
     card.classList.add('ok','flashok');
     renderLevelBar($('l-level'),p.level);
     updateLProg();
@@ -577,7 +579,6 @@ function learnCheck(){
   L.locked=true;
   L.done++;
   $('l-in').disabled=true;
-  p.zuletzt=Date.now();
   var card=$('l-card');
   var fb=$('l-fb');
   var right=norm(val)===norm(p.de);
@@ -588,10 +589,10 @@ function learnCheck(){
     card.classList.add('bad');
   }else if(right){
     L.richtig++;
-    levelUp(p);
+    var up=levelUp(p);
     save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':"Genau! ✅";
+    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
     card.classList.add('ok','flashok');
     renderLevelBar($('l-level'),p.level);
     updateLProg();
@@ -685,7 +686,6 @@ function timerCheck(){
   if(norm(val)===norm(p.de)){
     T.score++;
     levelUp(p);
-    p.zuletzt=Date.now();
     save();
     $('t-score').textContent='Punkte: '+T.score;
     fb.className='fb ok';fb.textContent='✅';
@@ -838,7 +838,6 @@ function diktatCheck(){
   if(!norm(val))return;
   D.locked=true;D.done++;
   $('d-in').disabled=true;
-  p.zuletzt=Date.now();
   var card=$('d-card'),fb=$('d-fb');
   if(norm(val)===norm(p.en)){
     D.richtig++;
