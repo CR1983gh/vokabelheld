@@ -424,7 +424,7 @@ var SAMPLE=[
  ["sunday","Sonntag"],["red","rot"],["blue","blau"],["green","grün"],["one","eins"],
  ["five","fünf"],["ten","zehn"],["apple","der Apfel"],["bread","das Brot"],["milk","die Milch"]
 ];
-function mkPair(w,ms){ return {w:String(w||''),m:(ms||[]).slice(),level:0,falsch:0,zuletzt:null}; }
+function mkPair(w,ms){ return {w:String(w||''),m:(ms||[]).slice(),level:0,falsch:0,zuletzt:null,akt:false}; }
 function defaultData(){
   return {books:[{name:"Klasse 5",lang:'en',lessons:[{name:"Lektion 1",pairs:SAMPLE.map(function(a){return mkPair(a[0],a.slice(1));})}]}],aktiv:0,lesson:-1};
 }
@@ -443,6 +443,15 @@ function migrate(){
 }
 function ensure(){
   migrate();
+  /* einmaliges Reset: alle Woerter inaktiv (Pool wird bewusst gefuellt) */
+  if(db && !db.poolReset2){
+    if(Array.isArray(db.books))db.books.forEach(function(b){
+      if(Array.isArray(b.lessons))b.lessons.forEach(function(l){
+        if(Array.isArray(l.pairs))l.pairs.forEach(function(p){p.akt=false;});
+      });
+    });
+    db.poolReset2=true;
+  }
   if(!db||!Array.isArray(db.books)||!db.books.length){db=defaultData();}
   if(typeof db.aktiv!=='number'||db.aktiv<0||db.aktiv>=db.books.length)db.aktiv=0;
   if(!('lesson' in db))db.lesson=-1;
@@ -461,7 +470,7 @@ function ensure(){
         p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
         p.falsch=parseInt(p.falsch,10)||0;
         if(!('zuletzt' in p))p.zuletzt=null;
-        if(!('akt' in p))p.akt=true;
+        if(!('akt' in p))p.akt=false;
       });
     });
   });
@@ -1351,7 +1360,8 @@ $('ed-add').addEventListener('click',function(){
   ensureLesson();
   var b=book(),L=b.lessons[edLessonIdx()];
   if(db.lesson<0)db.lesson=0;
-  L.pairs.unshift(mkPair('',[]));
+  var neu=mkPair('',[]);neu.akt=true;
+  L.pairs.unshift(neu);
   save();renderEd();
   var first=$('ed-list').querySelector('input');
   if(first)setTimeout(function(){try{first.focus();}catch(e){}},50);
