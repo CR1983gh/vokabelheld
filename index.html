@@ -162,15 +162,26 @@ footer a:hover{color:#2f6fb3}
     <div class="topbar">
       <button class="back" data-home>← Home</button>
       <div class="title">📚 Lernen</div>
-      <button class="btn ghost small" id="l-hint">💡</button>
+      <div class="row" style="gap:4px">
+        <button class="btn ghost small" id="l-mode" title="Modus wechseln">🔄 Karte</button>
+        <button class="btn ghost small" id="l-hint">💡</button>
+      </div>
     </div>
     <div class="prog" id="l-prog"></div>
     <div class="vcard" id="l-card">
       <div class="vword" id="l-word">…</div>
       <div class="levelbar" id="l-level"></div>
       <div class="hintline" id="l-hintline"></div>
-      <div class="answerrow">
+      <div class="answerrow" id="l-answerrow">
         <input id="l-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Übersetzung tippen …">
+      </div>
+      <div id="l-flipwrap" style="display:none">
+        <button class="btn yellow" id="l-reveal" style="width:100%">🔄 Lösung zeigen</button>
+        <div class="vword" id="l-solution" style="display:none;font-size:1.6rem;margin:10px 0 4px"></div>
+        <div class="row" id="l-knowrow" style="display:none;margin-top:10px;gap:8px">
+          <button class="btn grow" id="l-know" style="background:#2e9e5b;color:#fff;font-size:1.05rem;padding:.8rem 0">✓ Gewusst</button>
+          <button class="btn grow" id="l-noknow" style="background:#e5484d;color:#fff;font-size:1.05rem;padding:.8rem 0">✗ Nicht gewusst</button>
+        </div>
       </div>
       <div class="fb" id="l-fb"></div>
       <div style="margin-top:12px"><button class="btn red" id="l-next" style="display:none">Weiter</button></div>
@@ -390,6 +401,7 @@ $('home-newset').addEventListener('click',function(){newSet();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
 $('home-due').addEventListener('click',function(){startLearn(true);});
+updateModeBtn();
 Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
   b.addEventListener('click',function(){
     var g=b.getAttribute('data-go');
@@ -429,6 +441,9 @@ function wireResult(container,onAgain){
 
 /* ---------- LERNEN ---------- */
 var L=null;
+var FLIP = (function(){ try{ return localStorage.getItem('vhFlipMode')==='1'; }catch(e){ return false; } })();
+function saveFlip(){ try{ localStorage.setItem('vhFlipMode',FLIP?'1':'0'); }catch(e){} }
+function updateModeBtn(){ $('l-mode').textContent = FLIP?'🔄 Karte':'✍️ Tippen'; }
 function stopLearn(){L=null;}
 function startLearn(onlyDue){
   var ps=set().pairs;
@@ -459,9 +474,63 @@ function renderLearn(){
   var inp=$('l-in');
   inp.disabled=false;inp.value='';
   $('l-hint').disabled=false;
+  $('l-flipwrap').style.display=FLIP?'':'none';
+  $('l-answerrow').style.display=FLIP?'none':'';
+  $('l-reveal').style.display='';
+  $('l-solution').style.display='none';
+  $('l-knowrow').style.display='none';
   renderLevelBar($('l-level'),p.level);
   updateLProg();
-  setTimeout(function(){try{inp.focus();}catch(e){}},60);
+  if(!FLIP) setTimeout(function(){try{inp.focus();}catch(e){}},60);
+}
+$('l-mode').addEventListener('click',function(){ FLIP=!FLIP; saveFlip(); updateModeBtn(); if(L) renderLearn(); });
+$('l-reveal').addEventListener('click',function(){
+  if(!L||L.locked)return;
+  var p=set().pairs[L.cur]; if(!p)return;
+  this.style.display='none';
+  $('l-solution').textContent=p.de;
+  $('l-solution').style.display='';
+  $('l-knowrow').style.display='';
+});
+$('l-know').addEventListener('click',function(){ flipJudge(true); });
+$('l-noknow').addEventListener('click',function(){ flipJudge(false); });
+function flipJudge(right){
+  if(!L||L.locked)return;
+  var p=set().pairs[L.cur]; if(!p)return;
+  L.locked=true; L.done++;
+  var card=$('l-card'), fb=$('l-fb');
+  $('l-knowrow').style.display='none';
+  p.zuletzt=Date.now();
+  if(right){
+    L.richtig++;
+    levelUp(p);
+    save();
+    fb.className='fb ok';
+    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':'Gewusst! ✅';
+    card.classList.add('ok','flashok');
+    renderLevelBar($('l-level'),p.level);
+    updateLProg();
+    setTimeout(function(){
+      if(!L)return;
+      L.queue.shift();
+      var c=$('l-card');c.classList.remove('ok','bad','shake','flashok');
+      renderLearn();
+    },700);
+  }else{
+    L.falsch++;
+    levelDown(p);
+    p.falsch++;
+    save();
+    fb.className='fb bad';
+    fb.innerHTML='Nicht gewusst 😖<span class="sub">'+esc(p.en)+' = '+esc(p.de)+'</span>';
+    card.classList.add('bad','shake');
+    renderLevelBar($('l-level'),p.level);
+    updateLProg();
+    L.queue.shift();
+    var pos=Math.min(2,L.queue.length);
+    L.queue.splice(pos,0,L.cur);
+    $('l-next').style.display='';
+  }
 }
 function renderLevelBar(el,lvl){
   var h='';
