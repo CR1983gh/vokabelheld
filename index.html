@@ -174,7 +174,10 @@ footer a:hover{color:var(--accent)}
         <button class="btn yellow grow" id="home-due">⏰ Drann heute</button>
         <button class="btn ghost grow" id="home-report">📊 Report</button>
       </div>
-      <button class="btn ghost" style="width:100%" id="home-editor">✍️ Meine Vokabeln</button>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost grow" id="home-ws">📚 Mein Wortschatz</button>
+        <button class="btn ghost grow" id="home-editor">✍️ Editor</button>
+      </div>
     </div>
   </div>
 
@@ -187,6 +190,34 @@ footer a:hover{color:var(--accent)}
     </div>
     <div id="r-summary"></div>
     <div id="r-body"></div>
+  </div>
+
+  <!-- ============ MEIN WORTSCHATZ (Pool) ============ -->
+  <div class="view" id="v-ws">
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn ghost small" data-home>← Home</button>
+      <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📚 Mein Wortschatz</h2>
+      <span style="width:64px"></span>
+    </div>
+    <div class="card">
+      <p class="small" style="margin-bottom:8px">Nur was hier ausgewählt ist, wird abgefragt. Neue Schul-Lektion hinzufügen oder einzelne Wörter ankreuzen.</p>
+      <div class="row">
+        <select id="ws-lesson" class="grow"></select>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn green small grow" id="ws-addlesson">Lektion hinzufügen</button>
+        <button class="btn red small grow" id="ws-remlesson">Lektion entfernen</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
+        <input id="ws-search" type="search" placeholder="🔍 Wort suchen …" class="grow" style="flex:2">
+        <button class="btn ghost small" id="ws-all">Alle an</button>
+        <button class="btn ghost small" id="ws-none">Alle aus</button>
+      </div>
+      <p class="small" id="ws-info" style="margin-bottom:8px"></p>
+      <div id="ws-list"></div>
+    </div>
   </div>
 
   <!-- ============ LERNEN ============ -->
@@ -430,6 +461,7 @@ function ensure(){
         p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
         p.falsch=parseInt(p.falsch,10)||0;
         if(!('zuletzt' in p))p.zuletzt=null;
+        if(!('akt' in p))p.akt=true;
       });
     });
   });
@@ -440,6 +472,11 @@ function curPairs(){
   if(db.lesson>=0&&b.lessons[db.lesson])return b.lessons[db.lesson].pairs;
   var all=[];b.lessons.forEach(function(l){all=all.concat(l.pairs);});return all;
 }
+function poolPairs(){
+  var all=[];book().lessons.forEach(function(l){all=all.concat(l.pairs);});
+  return all.filter(function(p){return p.akt!==false;});
+}
+function poolCountTotal(){ var n=0;book().lessons.forEach(function(l){n+=l.pairs.length;}); return n; }
 function dispM(p){return p.m.filter(function(x){return String(x).trim();}).join(' · ');}
 function isCorrect(val,p){
   var v=norm(val);
@@ -461,7 +498,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws'];
 function show(v){
   views.forEach(function(x){
     var el=$('v-'+x);
@@ -478,12 +515,13 @@ function goHome(){
 
 /* ---------- Home ---------- */
 function renderHome(){
-  var ps=curPairs();
+  var ps=poolPairs();
   var learned=ps.filter(isLTM).length;
   var due=ps.filter(isDue).length;
   var bn=$('home-setname');
   bn.innerHTML='▶ '+langOf(book().lang).flag+' '+esc(book().name)+(db.lesson>=0?'<br><span style="font-size:.85rem;font-weight:600;opacity:.85">'+esc(book().lessons[db.lesson].name)+'</span>':'');
-  $('home-setinfo').textContent=ps.length+' Wörter · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
+  var tot=poolCountTotal();
+  $('home-setinfo').textContent=ps.length+(tot!==ps.length?'/'+tot:'')+' im Pool · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
   var sel=$('home-select');
   sel.innerHTML='';
   db.books.forEach(function(b,i){
@@ -499,7 +537,7 @@ function renderHome(){
     var o=document.createElement('option');o.value=i;o.textContent=l.name;lsel.appendChild(o);
   });
   lsel.value=String(db.lesson);
-  lsel.style.display=book().lessons.length>1?'':'none';
+  lsel.style.display='none'; /* Auswahl uebernimmt 'Mein Wortschatz' */
 }
 $('home-setname').addEventListener('click',function(){startLearn();});
 $('home-select').addEventListener('change',function(){
@@ -558,8 +596,8 @@ function saveFlip(){ try{ localStorage.setItem('vhFlipMode',FLIP?'1':'0'); }catc
 function updateModeBtn(){ $('l-mode').textContent = FLIP?'🔄 Karte':'✍️ Tippen'; }
 function stopLearn(){L=null;}
 function startLearn(onlyDue){
-  var ps=curPairs();
-  if(!ps.length){alert('In diesem Buch sind noch keine Wörter. Füge welche hinzu!');show('editor');return;}
+  var ps=poolPairs();
+  if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
   var idx=ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i]);});
   if(!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln dieses Sets sitzen im Langzeitgedächtnis.');return;}
   if(onlyDue){ idx=idx.filter(function(i){return isDue(ps[i]);});
@@ -573,7 +611,7 @@ function startLearn(onlyDue){
 function renderLearn(){
   if(!L)return;
   if(!L.queue.length){return learnEnd();}
-  var p=curPairs()[L.queue[0]];
+  var p=poolPairs()[L.queue[0]];
   if(!p){L.queue.shift();return renderLearn();}
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
@@ -598,7 +636,7 @@ function renderLearn(){
 $('l-mode').addEventListener('click',function(){ FLIP=!FLIP; saveFlip(); updateModeBtn(); if(L) renderLearn(); });
 $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
-  var p=curPairs()[L.cur]; if(!p)return;
+  var p=poolPairs()[L.cur]; if(!p)return;
   this.style.display='none';
   $('l-solution').textContent=dispM(p);
   $('l-solution').style.display='';
@@ -608,7 +646,7 @@ $('l-know').addEventListener('click',function(){ flipJudge(true); });
 $('l-noknow').addEventListener('click',function(){ flipJudge(false); });
 function flipJudge(right){
   if(!L||L.locked)return;
-  var p=curPairs()[L.cur]; if(!p)return;
+  var p=poolPairs()[L.cur]; if(!p)return;
   L.locked=true; L.done++;
   var card=$('l-card'), fb=$('l-fb');
   $('l-knowrow').style.display='none';
@@ -653,14 +691,14 @@ function renderLevelBar(el,lvl){
   el.innerHTML=h;
 }
 function updateLProg(){
-  var ps=curPairs();
+  var ps=poolPairs();
   var sum=0;ps.forEach(function(p){sum+=p.level;});
   var avg=ps.length?(sum/ps.length):0;
   $('l-prog').textContent=L.done+'/'+L.total+' · Level Ø '+avg.toFixed(1);
 }
 $('l-hint').addEventListener('click',function(){
   if(!L||L.locked||L.hint)return;
-  var p=curPairs()[L.cur];if(!p)return;
+  var p=poolPairs()[L.cur];if(!p)return;
   L.hint=true;
   this.disabled=true;
   $('l-hintline').textContent='Tipp: '+(p.m[0]||'?').charAt(0)+'…  (zählt nicht als richtig)';
@@ -674,7 +712,7 @@ $('l-next').addEventListener('click',function(){
 });
 function learnCheck(){
   if(!L||L.locked)return;
-  var p=curPairs()[L.cur];if(!p)return;
+  var p=poolPairs()[L.cur];if(!p)return;
   var val=$('l-in').value;
   if(!norm(val))return;
   L.locked=true;
@@ -737,7 +775,7 @@ function stopTimer(){
   if(T){T.dead=true;if(T.tick)clearTimeout(T.tick);T=null;}
 }
 function startTimer(){
-  var ps=curPairs();
+  var ps=poolPairs();
   var idx=[];
   ps.forEach(function(p,i){if(p.level>=1&&!isLTM(p))idx.push(i);});
   if(!idx.length){alert('Im Zeitfresser sind nur Vokabeln ab Level 1 dabei. Erst mal im Lernen üben!');return;}
@@ -765,7 +803,7 @@ function nextTimerCard(){
     T.queue=shuffle(T.orig);
   }
   var i=T.queue.shift();
-  var p=curPairs()[i];
+  var p=poolPairs()[i];
   if(!p){return;}
   T.cur=i;T.lock=false;
   var card=$('t-card');
@@ -778,7 +816,7 @@ function nextTimerCard(){
 $('t-in').addEventListener('keydown',function(e){if(e.key==='Enter')timerCheck();});
 function timerCheck(){
   if(!T||T.lock)return;
-  var p=curPairs()[T.cur];if(!p)return;
+  var p=poolPairs()[T.cur];if(!p)return;
   var val=$('t-in').value;
   if(!norm(val))return;
   T.lock=true;
@@ -883,8 +921,8 @@ function peekWord(text){
   },1000);
 }
 function startDiktat(){
-  var ps=curPairs();
-  if(!ps.length){alert('In diesem Buch sind noch keine Wörter. Füge welche hinzu!');show('editor');return;}
+  var ps=poolPairs();
+  if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
   if(speechOk===null){
     speechOk=false;
     try{
@@ -905,7 +943,7 @@ function startDiktat(){
 function renderDiktat(){
   if(!D)return;
   if(!D.queue.length)return diktatEnd();
-  var p=curPairs()[D.queue[0]];
+  var p=poolPairs()[D.queue[0]];
   if(!p){D.queue.shift();return renderDiktat();}
   D.cur=D.queue.shift();D.locked=false;
   var card=$('d-card');
@@ -922,7 +960,7 @@ function updateDProg(){
 }
 $('d-speak').addEventListener('click',function(){
   if(!D)return;
-  var p=curPairs()[D.cur];if(!p)return;
+  var p=poolPairs()[D.cur];if(!p)return;
   speakOrUpdate(p.w);
   var inp=$('d-in');setTimeout(function(){try{inp.focus();}catch(e){}},50);
 });
@@ -935,7 +973,7 @@ $('d-next').addEventListener('click',function(){
 });
 function diktatCheck(){
   if(!D||D.locked)return;
-  var p=curPairs()[D.cur];if(!p)return;
+  var p=poolPairs()[D.cur];if(!p)return;
   var val=$('d-in').value;
   if(!norm(val))return;
   D.locked=true;D.done++;
@@ -989,7 +1027,7 @@ var STUFE_INFO=[
   ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
 ];
 function renderReport(){
-  var ps=curPairs();
+  var ps=poolPairs();
   var groups=[[],[],[],[],[],[],[],[]];
   var dueCount=0;
   ps.forEach(function(p){
@@ -1034,7 +1072,7 @@ function renderReport(){
 /* ---------- DUELL ---------- */
 var DU=null;
 function startDuel(){
-  var ps=curPairs();
+  var ps=poolPairs();
   if(ps.length<2){alert('Für das Duell brauchst du mindestens 2 Wörter.');return;}
   var q=shuffle(ps.map(function(_,i){return i;}));
   var total=Math.min(20,q.length);
@@ -1049,7 +1087,7 @@ function duelQuestion(){
   if(!DU)return;
   if(DU.round>=DU.total)return duelEnd();
   var i=DU.queue[DU.round];
-  var p=curPairs()[i];
+  var p=poolPairs()[i];
   if(!p){DU.round++;return duelQuestion();}
   DU.cur=i;DU.locked=false;
   $('u-card').style.display='';
@@ -1082,7 +1120,7 @@ $('u-pass').addEventListener('click',function(){
 });
 function duelCheck(){
   if(!DU||DU.locked)return;
-  var p=curPairs()[DU.cur];if(!p)return;
+  var p=poolPairs()[DU.cur];if(!p)return;
   var val=$('u-in').value;
   if(!norm(val))return;
   DU.locked=true;
@@ -1117,6 +1155,70 @@ function duelEnd(){
     [['🔵 Spieler 1',a],['🔴 Spieler 2',b]],text);
   wireResult(r,startDuel);
 }
+
+/* ---------- MEIN WORTSCHATZ ---------- */
+var WS = {lesson:0, search:''};
+function renderWs(){
+  var b=book();
+  var sel=$('ws-lesson');
+  sel.innerHTML='';
+  b.lessons.forEach(function(l,i){
+    var o=document.createElement('option');
+    o.value=i;
+    var on=l.pairs.filter(function(p){return p.akt!==false;}).length;
+    o.textContent=l.name+' — '+on+'/'+l.pairs.length+' aktiv';
+    if(i===WS.lesson)o.selected=true;
+    sel.appendChild(o);
+  });
+  if(WS.lesson>=b.lessons.length)WS.lesson=0;
+  var L=b.lessons[WS.lesson]||{pairs:[]};
+  var q=WS.search.toLowerCase();
+  var shown=L.pairs.filter(function(p){ return !q || p.w.toLowerCase().indexOf(q)>=0 || dispM(p).toLowerCase().indexOf(q)>=0; });
+  var pool=poolPairs().length;
+  $('ws-info').textContent='Pool gesamt: '+pool+' von '+poolCountTotal()+' Wörtern'+(q?' · '+shown.length+' Treffer':'');
+  var list=$('ws-list');
+  list.innerHTML='';
+  shown.forEach(function(p){
+    var realIdx=L.pairs.indexOf(p);
+    var row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #eee';
+    var cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=p.akt!==false;
+    cb.style.cssText='width:22px;height:22px;flex:0 0 auto;accent-color:#1a8f4a';
+    cb.addEventListener('change',function(){ p.akt=this.checked; save(); renderWs(); });
+    var txt=document.createElement('span');
+    txt.style.cssText='flex:1;min-width:0;font-size:.95rem';
+    txt.innerHTML='<b>'+esc(p.w)+'</b> <span class="small">'+esc(dispM(p))+'</span>';
+    row.appendChild(cb);row.appendChild(txt);
+    if(p.akt!==false){
+      var st=document.createElement('span');
+      st.className='small';st.textContent=levelBadge(p.level);
+      row.appendChild(st);
+    }
+    list.appendChild(row);
+  });
+}
+$('home-ws').addEventListener('click',function(){renderWs();show('ws');});
+$('ws-lesson').addEventListener('change',function(){WS.lesson=parseInt(this.value,10)||0;renderWs();});
+$('ws-search').addEventListener('input',function(){WS.search=this.value.trim();renderWs();});
+$('ws-all').addEventListener('click',function(){
+  var L=book().lessons[WS.lesson]||{pairs:[]};
+  L.pairs.forEach(function(p){p.akt=true;});save();renderWs();
+});
+$('ws-none').addEventListener('click',function(){
+  var L=book().lessons[WS.lesson]||{pairs:[]};
+  L.pairs.forEach(function(p){p.akt=false;});save();renderWs();
+});
+$('ws-addlesson').addEventListener('click',function(){
+  var L=book().lessons[WS.lesson]||{pairs:[]};
+  L.pairs.forEach(function(p){p.akt=true;});
+  WS.lesson=Math.min(book().lessons.length-1,WS.lesson+1);
+  save();renderWs();
+});
+$('ws-remlesson').addEventListener('click',function(){
+  var L=book().lessons[WS.lesson]||{pairs:[]};
+  L.pairs.forEach(function(p){p.akt=false;});save();renderWs();
+});
 
 /* ---------- EDITOR ---------- */
 var delSetArmed=false,delSetTimer=null;
