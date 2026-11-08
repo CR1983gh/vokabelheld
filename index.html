@@ -48,6 +48,8 @@ h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);fo
 }
 .duebtn:active{transform:scale(.98)}
 .duebtn.calm{background:#fff;color:#5d7494;border:1.5px solid #d5d5da;box-shadow:none;font-weight:700;font-size:1rem;padding:13px}
+.bookbar{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--hairline);border-radius:var(--r);padding:10px;margin-bottom:12px}
+.bookbar select{flex:1;font-weight:700}
 .bookrow{
   display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--hairline);
   border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer;width:100%;text-align:left;
@@ -213,6 +215,7 @@ footer a:hover{color:var(--accent)}
       <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📊 Mein Report</h2>
       <span style="width:64px"></span>
     </div>
+    <div class="bookbar">📖 <select class="bookpick" id="rep-pick"></select></div>
     <div id="r-summary"></div>
     <div id="r-body"></div>
   </div>
@@ -224,6 +227,7 @@ footer a:hover{color:var(--accent)}
       <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📚 Mein Wortschatz</h2>
       <span style="width:64px"></span>
     </div>
+    <div class="bookbar">📖 <select class="bookpick" id="ws-pick"></select></div>
     <div class="card">
       <p class="small" style="margin-bottom:8px">Nur was hier ausgewählt ist, wird abgefragt. Neue Schul-Lektion hinzufügen oder einzelne Wörter ankreuzen.</p>
       <div class="row">
@@ -354,6 +358,7 @@ footer a:hover{color:var(--accent)}
       <div class="title">✍️ Meine Vokabeln</div>
       <div style="width:64px"></div>
     </div>
+    <div class="bookbar">📖 <select class="bookpick" id="ed-pick"></select></div>
     <div class="card">
       <div class="setrow">
         <span>📚</span>
@@ -540,11 +545,14 @@ function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}
 
 /* ---------- Ansichten ---------- */
 var views=['home','learn','timer','diktat','duel','editor','report','ws'];
+var currentView='home';
 function show(v){
+  currentView=v;
   views.forEach(function(x){
     var el=$('v-'+x);
     if(el)el.classList.toggle('active',x===v);
   });
+  fillBookPicks();
   if(v==='home')renderHome();
   if(v==='editor')renderEd();
   window.scrollTo(0,0);
@@ -553,6 +561,30 @@ function goHome(){
   stopTimer();stopLearn();stopDiktat();
   show('home');
 }
+
+/* ---------- Buchauswahl in Untersites ---------- */
+function fillBookPicks(){
+  Array.prototype.forEach.call(document.querySelectorAll('.bookpick'),function(sel){
+    sel.innerHTML='';
+    db.books.forEach(function(b,i){
+      var o=document.createElement('option');
+      o.value=i;o.textContent=langOf(b.lang).flag+' '+b.name;
+      if(i===db.aktiv)o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll('.bookpick'),function(sel){
+  sel.addEventListener('change',function(){
+    db.aktiv=parseInt(this.value,10)||0;
+    db.lesson=-1;WS.lesson=0;
+    save();fillBookPicks();
+    var v=currentView;
+    if(v==='report')renderReport();
+    else if(v==='ws')renderWs();
+    else if(v==='editor')renderEd();
+  });
+});
 
 /* ---------- Home ---------- */
 function bookPool(b){
