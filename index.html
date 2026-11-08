@@ -400,6 +400,9 @@ footer a:hover{color:var(--accent)}
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
         <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
       </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn green small grow" id="ed-campusc" style="min-width:200px">🏛️ Campus C-Wortschatz I–III laden</button>
+      </div>
     </div>
   </div>
 
@@ -1519,9 +1522,10 @@ function doImport(mode){
   $('ed-import').value='';
   renderEd();renderHome();
 }
-$('ed-campus').addEventListener('click',function(){
-  var btn=this;btn.disabled=true;btn.textContent='Lade …';
-  fetch('campusA.txt').then(function(r){
+function loadPreset(file,label){
+  var btn=$('ed-'+(file==='campusA.txt'?'campus':'campusc'));
+  btn.disabled=true;btn.textContent='Lade …';
+  fetch(file+'?v=2').then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.text();
   }).then(function(txt){
@@ -1530,9 +1534,11 @@ $('ed-campus').addEventListener('click',function(){
   }).catch(function(e){
     alert('Download fehlgeschlagen: '+e);
   }).finally(function(){
-    btn.disabled=false;btn.textContent='🏛️ Campus A-Wortschatz laden';
+    btn.disabled=false;btn.textContent=label;
   });
-});
+}
+$('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Campus A-Wortschatz laden');});
+$('ed-campusc').addEventListener('click',function(){loadPreset('campusC.txt','🏛️ Campus C-Wortschatz I–III laden');});
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
 function parseExport(txt){
