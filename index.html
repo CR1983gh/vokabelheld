@@ -46,7 +46,7 @@ h1.logo{font-size:1.6rem;text-align:center;margin:6px 0 14px;color:#2f6fb3;lette
 .btn.yellow{background:#ffd400;color:#22303f}
 .btn.green{background:#2e9e5b}
 .btn.red{background:#e5484d}
-.btn.ghost{background:#e9f0fb;color:#2f6fb3}
+.btn.ghost{background:#fff;color:#1b4a7e;border:2px solid #2f6fb3}
 .btn.small{padding:8px 12px;font-size:.85rem}
 .row{display:flex;gap:8px;align-items:center}
 .grow{flex:1;min-width:0}
@@ -56,9 +56,9 @@ input,select,textarea{
 }
 input:focus,select:focus,textarea:focus{outline:none;border-color:#2f6fb3}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.back{border:none;background:#e9f0fb;color:#2f6fb3;border-radius:999px;padding:9px 14px;font-weight:700;font-size:.95rem;cursor:pointer;flex:0 0 auto}
+.back{border:2px solid #2f6fb3;background:#fff;color:#1b4a7e;border-radius:999px;padding:9px 14px;font-weight:700;font-size:.95rem;cursor:pointer;flex:0 0 auto}
 .topbar .title{font-weight:800;font-size:1.05rem;flex:1;text-align:center}
-.prog{font-size:.85rem;color:#5d6b7d;text-align:center;margin-bottom:8px;font-weight:600}
+.prog{font-size:.85rem;color:#3d4a59;text-align:center;margin-bottom:8px;font-weight:600}
 /* Lernkarte */
 .vcard{
   background:#fff;border-radius:16px;box-shadow:0 8px 22px rgba(47,111,179,.15);
@@ -75,7 +75,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#2f6fb3}
 .fb{margin-top:12px;font-size:1.05rem;font-weight:800;word-break:break-word}
 .fb.ok{color:#2e9e5b}
 .fb.bad{color:#e5484d}
-.fb .sub{display:block;font-weight:600;color:#5d6b7d;font-size:.9rem;margin-top:4px}
+.fb .sub{display:block;font-weight:600;color:#3d4a59;font-size:.9rem;margin-top:4px}
 .answerrow{display:flex;gap:8px;margin-top:14px}
 .answerrow input{flex:1;font-size:1.15rem;padding:13px 14px}
 @keyframes flashok{0%{box-shadow:0 0 0 4px rgba(46,158,91,.7)}100%{box-shadow:0 8px 22px rgba(47,111,179,.15)}}
@@ -103,19 +103,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#2f6fb3}
 .result h2{margin:8px 0 12px}
 .result table{margin:0 auto 14px;border-collapse:collapse;font-size:1.05rem}
 .result td{padding:4px 10px}
-.result td:first-child{text-align:left;font-weight:700;color:#5d6b7d}
+.result td:first-child{text-align:left;font-weight:700;color:#33404f}
 .result td:last-child{text-align:right;font-weight:800}
 /* Editor */
 .edrow{display:grid;grid-template-columns:1fr 22px 1fr auto auto;gap:6px;align-items:center;margin-bottom:8px}
 .edrow input{padding:9px 10px;font-size:.95rem;min-width:0}
-.edrow .arrow{color:#5d6b7d;text-align:center;font-weight:800}
+.edrow .arrow{color:#3d4a59;text-align:center;font-weight:800}
 .badge{font-size:.8rem;white-space:nowrap;background:#fff6c2;border-radius:999px;padding:5px 7px;font-weight:800}
 .del{border:none;background:#fde8e9;color:#e5484d;border-radius:10px;padding:8px 9px;font-size:.95rem;cursor:pointer;font-weight:800}
 .setrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 hr.sep{border:none;border-top:1px solid #e4ebf7;margin:14px 0}
-.small{font-size:.8rem;color:#5d6b7d}
+.small{font-size:.8rem;color:#3d4a59}
 footer{text-align:center;padding:14px 0 10px}
-footer a{color:#8aa2c0;font-size:.68rem;text-decoration:none}
+footer a{color:#5d7494;font-size:.68rem;text-decoration:none}
 footer a:hover{color:#2f6fb3}
 .spkbtn{
   border:none;background:#e9f0fb;border-radius:999px;font-size:1.6rem;padding:12px 22px;cursor:pointer;
@@ -970,25 +970,25 @@ function renderReport(){
     if(l>0&&l<7&&isDue(p)) dueCount++;
   });
   var h='<div class="card"><div class="levelbar">';
-  for(var i=0;i<8;i++){ h+='<span style="flex:1;text-align:center;font-size:.65rem;color:var(--muted,#6b7f95)">'+(i>=7?'🧠':i)+'</span>'; }
+  for(var i=0;i<8;i++){ h+='<span style="flex:1;text-align:center;font-size:.65rem;color:var(--muted,#33465c)">'+(i>=7?'🧠':i)+'</span>'; }
   h+='</div><div style="display:flex;margin-top:4px">';
   for(var j=0;j<8;j++){
     h+='<span style="flex:'+groups[j].length+' 0 '+(ps.length?0:'1')+';background:'+(j>=7?'#8e4ec6':(j>=6?'#2e9e5b':'#ffd400'))+';min-width:'+(groups[j].length?'4px':'2px')+';height:10px;border-radius:5px;margin:0 1px" title="'+STUFE_INFO[j][1]+': '+groups[j].length+'"></span>'; }
   h+='</div><p class="small center" style="margin:8px 0 0">'+ps.length+' Vokabeln · '+dueCount+' fällig zum Wiederholen</p></div>';
   for(var k=7;k>=0;k--){
     var g=groups[k];
-    h+='<div class="card" style="margin-top:10px;padding:10px 12px"><b>'+STUFE_INFO[k][0]+' '+STUFE_INFO[k][1]+' <span class="small" style="font-weight:400;color:#6b7f95">· '+STUFE_INFO[k][2]+' · '+STUFE_INFO[k][3]+'</span></b>';
-    h+='<p class="small" style="margin:2px 0 6px;color:#6b7f95">'+g.length+' Vokabeln'+(k===6?' 🎉':'')+'</p>';
+    h+='<div class="card" style="margin-top:10px;padding:10px 12px"><b>'+STUFE_INFO[k][0]+' '+STUFE_INFO[k][1]+' <span class="small" style="font-weight:400;color:#33465c">· '+STUFE_INFO[k][2]+' · '+STUFE_INFO[k][3]+'</span></b>';
+    h+='<p class="small" style="margin:2px 0 6px;color:#33465c">'+g.length+' Vokabeln'+(k===6?' 🎉':'')+'</p>';
     if(g.length){
       h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
       g.forEach(function(p,gi){
         if(k===7){
-          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#6b7f95">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
+          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#33465c">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
           return;
         }
         var over = k>0 && isDue(p);
         var days = (!p.zuletzt||k===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
-        h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#6b7f95"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#6b7f95">in '+days+'d</span>':'')+'</span>';
+        h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#33465c"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#33465c">in '+days+'d</span>':'')+'</span>';
       });
       h+='</div>';
     }
