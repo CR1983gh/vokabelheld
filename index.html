@@ -138,8 +138,23 @@ footer a:hover{color:#2f6fb3}
         <select id="home-select" class="grow"></select>
         <button class="btn ghost small" id="home-newset">Neues Set</button>
       </div>
-      <button class="btn yellow" style="width:100%" id="home-editor">✍️ Meine Vokabeln</button>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn yellow grow" id="home-due">⏰ Drann heute</button>
+        <button class="btn ghost grow" id="home-report">📊 Report</button>
+      </div>
+      <button class="btn ghost" style="width:100%" id="home-editor">✍️ Meine Vokabeln</button>
     </div>
+  </div>
+
+  <!-- ============ REPORT ============ -->
+  <div class="view" id="v-report">
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn ghost small" data-home>← Home</button>
+      <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📊 Mein Report</h2>
+      <span style="width:64px"></span>
+    </div>
+    <div id="r-summary"></div>
+    <div id="r-body"></div>
   </div>
 
   <!-- ============ LERNEN ============ -->
@@ -284,7 +299,14 @@ function norm(s){
   return s;
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function levelBadge(l){return l<=0?'🌱':'⭐'.repeat(Math.min(l,5));}
+function levelBadge(l){return l<=0?'🌱':(l>=6?'🏆':'⭐'.repeat(l));}
+/* Faelligkeit in Tagen je Stufe: 0=sofort, 1=sofort, 2=1 Tag, 3=3, 4=9, 5=29, 6=90 */
+var DUE=[0,0,1,3,9,29,90];
+var DAY=86400000;
+function dueAt(p){ if(!p.zuletzt) return 0; return p.zuletzt + (DUE[Math.max(0,Math.min(6,p.level||0))]*DAY); }
+function isDue(p){ return !p.zuletzt || Date.now()>=dueAt(p); }
+function levelUp(p){ p.level=Math.min(6,(p.level||0)+1); p.zuletzt=Date.now(); }
+function levelDown(p){ var l=p.level||0; p.level = (l<=0)?0:(l<=2?1:l-2); p.zuletzt=Date.now(); }
 
 /* ---------- Daten ---------- */
 var SAMPLE=[
@@ -307,7 +329,7 @@ function ensure(){
     if(!Array.isArray(s.pairs))s.pairs=[];
     s.pairs.forEach(function(p){
       p.en=String(p.en||'');p.de=String(p.de||'');
-      p.level=Math.max(0,Math.min(5,parseInt(p.level,10)||0));
+      p.level=Math.max(0,Math.min(6,parseInt(p.level,10)||0));
       p.falsch=parseInt(p.falsch,10)||0;
       if(!('zuletzt' in p))p.zuletzt=null;
     });
@@ -328,7 +350,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor'];
+var views=['home','learn','timer','diktat','duel','editor','report'];
 function show(v){
   views.forEach(function(x){
     var el=$('v-'+x);
@@ -346,9 +368,10 @@ function goHome(){
 /* ---------- Home ---------- */
 function renderHome(){
   var s=set();
-  var learned=s.pairs.filter(function(p){return p.level>=3;}).length;
+  var learned=s.pairs.filter(function(p){return p.level>=6;}).length;
+  var due=s.pairs.filter(isDue).length;
   $('home-setname').textContent='▶ '+s.name;
-  $('home-setinfo').textContent=s.pairs.length+' Vokabeln · '+learned+' davon schon stark (Level 3+)';
+  $('home-setinfo').textContent=s.pairs.length+' Vokabeln · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🏆';
   var sel=$('home-select');
   sel.innerHTML='';
   db.sets.forEach(function(st,i){
@@ -364,6 +387,8 @@ $('home-select').addEventListener('change',function(){
 });
 $('home-newset').addEventListener('click',function(){newSet();});
 $('home-editor').addEventListener('click',function(){show('editor');});
+$('home-report').addEventListener('click',function(){renderReport();show('report');});
+$('home-due').addEventListener('click',function(){startLearn(true);});
 Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
   b.addEventListener('click',function(){
     var g=b.getAttribute('data-go');
@@ -404,10 +429,13 @@ function wireResult(container,onAgain){
 /* ---------- LERNEN ---------- */
 var L=null;
 function stopLearn(){L=null;}
-function startLearn(){
+function startLearn(onlyDue){
   var ps=set().pairs;
   if(!ps.length){alert('Dieses Set hat noch keine Vokabeln. Füge welche hinzu!');show('editor');return;}
-  L={queue:shuffle(ps.map(function(_,i){return i;})),total:ps.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
+  var idx=ps.map(function(_,i){return i;});
+  if(onlyDue){ idx=idx.filter(function(i){return isDue(ps[i]);});
+    if(!idx.length){alert('🎉 Super! Heute ist alles gelernt — komm morgen wieder oder lerne alle Vokabeln.');return;} }
+  L={queue:shuffle(idx),total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
@@ -435,7 +463,7 @@ function renderLearn(){
 }
 function renderLevelBar(el,lvl){
   var h='';
-  for(var i=0;i<5;i++)h+='<i class="'+(i<lvl?'on':'')+'"></i>';
+  for(var i=0;i<6;i++)h+='<i class="'+(i<lvl?'on':'')+'"></i>';
   el.innerHTML=h;
 }
 function updateLProg(){
@@ -477,7 +505,7 @@ function learnCheck(){
     card.classList.add('bad');
   }else if(right){
     L.richtig++;
-    p.level=Math.min(5,p.level+1);
+    levelUp(p);
     save();
     fb.className='fb ok';
     fb.textContent='Genau! ✅';
@@ -493,7 +521,7 @@ function learnCheck(){
     return;
   }else{
     L.falsch++;
-    p.level=Math.max(0,p.level-1);
+    levelDown(p);
     p.falsch++;
     save();
     fb.className='fb bad';
@@ -573,7 +601,7 @@ function timerCheck(){
   var card=$('t-card'),fb=$('t-fb');
   if(norm(val)===norm(p.de)){
     T.score++;
-    p.level=Math.min(5,p.level+1);
+    levelUp(p);
     p.zuletzt=Date.now();
     save();
     $('t-score').textContent='Punkte: '+T.score;
@@ -581,7 +609,7 @@ function timerCheck(){
     card.classList.add('flashok');
     setTimeout(function(){if(T&&!T.dead)nextTimerCard();},200);
   }else{
-    p.level=Math.max(0,p.level-1);
+    levelDown(p);
     p.falsch++;
     save();
     fb.className='fb bad';    card.classList.add('bad','shake');
@@ -731,7 +759,7 @@ function diktatCheck(){
   var card=$('d-card'),fb=$('d-fb');
   if(norm(val)===norm(p.en)){
     D.richtig++;
-    p.level=Math.min(5,p.level+1);
+    levelUp(p);
     save();
     fb.className='fb ok';fb.textContent='Genau! ✅';
     card.classList.add('ok','flashok');
@@ -743,7 +771,7 @@ function diktatCheck(){
     },600);
   }else{
     D.falsch++;
-    p.level=Math.max(0,p.level-1);
+    levelDown(p);
     p.falsch++;
     save();
     fb.className='fb bad';
@@ -763,6 +791,49 @@ function diktatEnd(){
     [['Richtig ✅',D.richtig],['Falsch ❌',D.falsch]],
     D.falsch===0?'🏅':'🎉');
   wireResult(r,startDiktat);
+}
+
+/* ---------- REPORT ---------- */
+var STUFE_INFO=[
+  ['🌱','Stufe 0','Noch nicht gelernt','sofort üben'],
+  ['⭐','Stufe 1','Ganz frisch','sofort fällig'],
+  ['⭐⭐','Stufe 2','Schon besser','nach 1 Tag'],
+  ['⭐⭐⭐','Stufe 3','Gut','nach 3 Tagen'],
+  ['⭐⭐⭐⭐','Stufe 4','Stark','nach 9 Tagen'],
+  ['⭐⭐⭐⭐⭐','Stufe 5','Sehr stark','nach 29 Tagen'],
+  ['🏆','Stufe 6','Langzeitgedächtnis!','nach 90 Tagen']
+];
+function renderReport(){
+  var ps=set().pairs;
+  var groups=[[],[],[],[],[],[],[]];
+  var dueCount=0;
+  ps.forEach(function(p){
+    var l=Math.max(0,Math.min(6,p.level||0));
+    groups[l].push(p);
+    if(isDue(p)&&l>0) dueCount++;
+  });
+  var h='<div class="card"><div class="levelbar">';
+  for(var i=0;i<7;i++){ h+='<span style="flex:1;text-align:center;font-size:.7rem;color:var(--muted,#6b7f95)">'+STUFE_INFO[i][1].replace('Stufe ','')+ '</span>'; }
+  h+='</div><div style="display:flex;margin-top:4px">';
+  for(var j=0;j<7;j++){ var pct=ps.length?Math.round(groups[j].length/ps.length*100):0;
+    h+='<span style="flex:'+groups[j].length+' 0 '+(ps.length?0:'1')+';background:'+(j>=6?'#2e9e5b':'#ffd400')+';min-width:'+(groups[j].length?'4px':'2px')+';height:10px;border-radius:5px;margin:0 1px" title="'+STUFE_INFO[j][1]+': '+groups[j].length+'"></span>'; }
+  h+='</div><p class="small center" style="margin:8px 0 0">'+ps.length+' Vokabeln · '+dueCount+' fällig zum Wiederholen</p></div>';
+  for(var k=6;k>=0;k--){
+    var g=groups[k];
+    h+='<div class="card" style="margin-top:10px;padding:10px 12px"><b>'+STUFE_INFO[k][0]+' '+STUFE_INFO[k][1]+' <span class="small" style="font-weight:400;color:#6b7f95">· '+STUFE_INFO[k][2]+' · '+STUFE_INFO[k][3]+'</span></b>';
+    h+='<p class="small" style="margin:2px 0 6px;color:#6b7f95">'+g.length+' Vokabeln'+(k===6?' 🎉':'')+'</p>';
+    if(g.length){
+      h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+      g.forEach(function(p){
+        var over = k>0 && isDue(p);
+        var days = (!p.zuletzt||k===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
+        h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.en)+'<b style="color:#6b7f95"> · '+esc(p.de)+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#6b7f95">in '+days+'d</span>':'')+'</span>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  $('r-body').innerHTML=h;
 }
 
 /* ---------- DUELL ---------- */
