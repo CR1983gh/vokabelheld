@@ -299,13 +299,14 @@ function norm(s){
   return s;
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function levelBadge(l){return l<=0?'🌱':(l>=6?'🏆':'⭐'.repeat(l));}
+function levelBadge(l){return l<=0?'🌱':(l>=7?'🧠':(l>=6?'⭐⭐⭐⭐⭐⭐':'⭐'.repeat(l)));}
+function isLTM(p){return (p.level||0)>=7;}
 /* Faelligkeit in Tagen je Stufe: 0=sofort, 1=sofort, 2=1 Tag, 3=3, 4=9, 5=29, 6=90 */
 var DUE=[0,0,1,3,9,29,90];
 var DAY=86400000;
 function dueAt(p){ if(!p.zuletzt) return 0; return p.zuletzt + (DUE[Math.max(0,Math.min(6,p.level||0))]*DAY); }
 function isDue(p){ return !p.zuletzt || Date.now()>=dueAt(p); }
-function levelUp(p){ p.level=Math.min(6,(p.level||0)+1); p.zuletzt=Date.now(); }
+function levelUp(p){ p.level=Math.min(7,(p.level||0)+1); p.zuletzt=Date.now(); }
 function levelDown(p){ var l=p.level||0; p.level = (l<=0)?0:(l<=2?1:l-2); p.zuletzt=Date.now(); }
 
 /* ---------- Daten ---------- */
@@ -329,7 +330,7 @@ function ensure(){
     if(!Array.isArray(s.pairs))s.pairs=[];
     s.pairs.forEach(function(p){
       p.en=String(p.en||'');p.de=String(p.de||'');
-      p.level=Math.max(0,Math.min(6,parseInt(p.level,10)||0));
+      p.level=Math.max(0,Math.min(7,parseInt(p.level,10)||0));
       p.falsch=parseInt(p.falsch,10)||0;
       if(!('zuletzt' in p))p.zuletzt=null;
     });
@@ -368,10 +369,10 @@ function goHome(){
 /* ---------- Home ---------- */
 function renderHome(){
   var s=set();
-  var learned=s.pairs.filter(function(p){return p.level>=6;}).length;
+  var learned=s.pairs.filter(isLTM).length;
   var due=s.pairs.filter(isDue).length;
   $('home-setname').textContent='▶ '+s.name;
-  $('home-setinfo').textContent=s.pairs.length+' Vokabeln · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🏆';
+  $('home-setinfo').textContent=s.pairs.length+' Vokabeln · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
   var sel=$('home-select');
   sel.innerHTML='';
   db.sets.forEach(function(st,i){
@@ -432,7 +433,8 @@ function stopLearn(){L=null;}
 function startLearn(onlyDue){
   var ps=set().pairs;
   if(!ps.length){alert('Dieses Set hat noch keine Vokabeln. Füge welche hinzu!');show('editor');return;}
-  var idx=ps.map(function(_,i){return i;});
+  var idx=ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i]);});
+  if(!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln dieses Sets sitzen im Langzeitgedächtnis.');return;}
   if(onlyDue){ idx=idx.filter(function(i){return isDue(ps[i]);});
     if(!idx.length){alert('🎉 Super! Heute ist alles gelernt — komm morgen wieder oder lerne alle Vokabeln.');return;} }
   L={queue:shuffle(idx),total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
@@ -508,7 +510,7 @@ function learnCheck(){
     levelUp(p);
     save();
     fb.className='fb ok';
-    fb.textContent='Genau! ✅';
+    fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':"Genau! ✅";
     card.classList.add('ok','flashok');
     renderLevelBar($('l-level'),p.level);
     updateLProg();
@@ -554,7 +556,7 @@ function stopTimer(){
 function startTimer(){
   var ps=set().pairs;
   var idx=[];
-  ps.forEach(function(p,i){if(p.level>=1)idx.push(i);});
+  ps.forEach(function(p,i){if(p.level>=1&&!isLTM(p))idx.push(i);});
   if(!idx.length){alert('Im Zeitfresser sind nur Vokabeln ab Level 1 dabei. Erst mal im Lernen üben!');return;}
   stopTimer();
   T={queue:shuffle(idx),orig:idx.slice(),score:0,cur:null,lock:false,dead:false,
@@ -710,7 +712,7 @@ function startDiktat(){
       }
     }catch(e){speechOk=false;}
   }
-  D={queue:shuffle(ps.map(function(_,i){return i;})),total:ps.length,done:0,richtig:0,falsch:0,cur:null,locked:false};
+  D={queue:shuffle(ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i]);})),total:0,done:0,richtig:0,falsch:0,cur:null,locked:false};D.total=D.queue.length;
   show('diktat');
   $('d-result').style.display='none';
   $('d-card').style.display='';
@@ -761,7 +763,7 @@ function diktatCheck(){
     D.richtig++;
     levelUp(p);
     save();
-    fb.className='fb ok';fb.textContent='Genau! ✅';
+    fb.className='fb ok';fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':"Genau! ✅";
     card.classList.add('ok','flashok');
     updateDProg();
     setTimeout(function(){
@@ -801,30 +803,35 @@ var STUFE_INFO=[
   ['⭐⭐⭐','Stufe 3','Gut','nach 3 Tagen'],
   ['⭐⭐⭐⭐','Stufe 4','Stark','nach 9 Tagen'],
   ['⭐⭐⭐⭐⭐','Stufe 5','Sehr stark','nach 29 Tagen'],
-  ['🏆','Stufe 6','Langzeitgedächtnis!','nach 90 Tagen']
+  ['⭐⭐⭐⭐⭐⭐','Stufe 6','Fast geschafft','nach 90 Tagen'],
+  ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
 ];
 function renderReport(){
   var ps=set().pairs;
-  var groups=[[],[],[],[],[],[],[]];
+  var groups=[[],[],[],[],[],[],[],[]];
   var dueCount=0;
   ps.forEach(function(p){
-    var l=Math.max(0,Math.min(6,p.level||0));
+    var l=isLTM(p)?7:Math.max(0,Math.min(6,p.level||0));
     groups[l].push(p);
-    if(isDue(p)&&l>0) dueCount++;
+    if(l>0&&l<7&&isDue(p)) dueCount++;
   });
   var h='<div class="card"><div class="levelbar">';
-  for(var i=0;i<7;i++){ h+='<span style="flex:1;text-align:center;font-size:.7rem;color:var(--muted,#6b7f95)">'+STUFE_INFO[i][1].replace('Stufe ','')+ '</span>'; }
+  for(var i=0;i<8;i++){ h+='<span style="flex:1;text-align:center;font-size:.65rem;color:var(--muted,#6b7f95)">'+(i>=7?'🧠':i)+'</span>'; }
   h+='</div><div style="display:flex;margin-top:4px">';
-  for(var j=0;j<7;j++){ var pct=ps.length?Math.round(groups[j].length/ps.length*100):0;
-    h+='<span style="flex:'+groups[j].length+' 0 '+(ps.length?0:'1')+';background:'+(j>=6?'#2e9e5b':'#ffd400')+';min-width:'+(groups[j].length?'4px':'2px')+';height:10px;border-radius:5px;margin:0 1px" title="'+STUFE_INFO[j][1]+': '+groups[j].length+'"></span>'; }
+  for(var j=0;j<8;j++){
+    h+='<span style="flex:'+groups[j].length+' 0 '+(ps.length?0:'1')+';background:'+(j>=7?'#8e4ec6':(j>=6?'#2e9e5b':'#ffd400'))+';min-width:'+(groups[j].length?'4px':'2px')+';height:10px;border-radius:5px;margin:0 1px" title="'+STUFE_INFO[j][1]+': '+groups[j].length+'"></span>'; }
   h+='</div><p class="small center" style="margin:8px 0 0">'+ps.length+' Vokabeln · '+dueCount+' fällig zum Wiederholen</p></div>';
-  for(var k=6;k>=0;k--){
+  for(var k=7;k>=0;k--){
     var g=groups[k];
     h+='<div class="card" style="margin-top:10px;padding:10px 12px"><b>'+STUFE_INFO[k][0]+' '+STUFE_INFO[k][1]+' <span class="small" style="font-weight:400;color:#6b7f95">· '+STUFE_INFO[k][2]+' · '+STUFE_INFO[k][3]+'</span></b>';
     h+='<p class="small" style="margin:2px 0 6px;color:#6b7f95">'+g.length+' Vokabeln'+(k===6?' 🎉':'')+'</p>';
     if(g.length){
       h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
-      g.forEach(function(p){
+      g.forEach(function(p,gi){
+        if(k===7){
+          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.en)+' <b style="color:#6b7f95">'+esc(p.de)+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
+          return;
+        }
         var over = k>0 && isDue(p);
         var days = (!p.zuletzt||k===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
         h+='<span style="border:1px solid '+(over?'#e5484d':'#dbe6f7')+';background:'+(over?'#fdecec':'#f6f9ff')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.en)+'<b style="color:#6b7f95"> · '+esc(p.de)+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#6b7f95">in '+days+'d</span>':'')+'</span>';
@@ -834,6 +841,12 @@ function renderReport(){
     h+='</div>';
   }
   $('r-body').innerHTML=h;
+  Array.prototype.forEach.call($('r-body').querySelectorAll('.ltm-back'),function(b){
+    b.addEventListener('click',function(){
+      var p=ps[parseInt(b.dataset.i,10)]; if(!p)return;
+      p.level=5; p.zuletzt=Date.now()-30*DAY; save(); renderReport();
+    });
+  });
 }
 
 /* ---------- DUELL ---------- */
