@@ -652,7 +652,10 @@ function startLearn(onlyDue,presetIdx){
   if(!presetIdx&&!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln sitzen im Langzeitgedächtnis.');return;}
   if(onlyDue&&!presetIdx){ idx=idx.filter(function(i){return isDue(ps[i]);});
     if(!idx.length){alert('🎉 Super! Heute ist alles gelernt.');return;} }
-  L={queue:presetIdx?idx.slice():shuffle(idx),total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
+  /* Reihenfolge: niedrigste Stufe zuerst, dann aufsteigend; innerhalb gleicher Stufe zufaellig */
+  var q=shuffle(idx);
+  q.sort(function(a,b){ return (ps[a].level||0)-(ps[b].level||0); });
+  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
