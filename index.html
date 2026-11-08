@@ -70,6 +70,7 @@ input,select,textarea{
   padding:12px;background:#fff;color:var(--ink);width:100%;
 }
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden;font-size:.95rem;padding:12px 10px}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .back{border:none;background:transparent;color:var(--accent-ink);border-radius:12px;padding:10px 12px;font-weight:700;font-size:.95rem;cursor:pointer;flex:0 0 auto}
 .back:active{background:#e8e8ee}
@@ -163,8 +164,8 @@ footer a:hover{color:var(--accent)}
     </div>
     <div class="card" style="margin-top:12px">
       <div class="row" style="margin-bottom:8px">
-        <select id="home-select" class="grow"></select>
-        <button class="btn ghost small" id="home-newset">Neues Buch</button>
+        <select id="home-select" class="grow" style="flex:2.2"></select>
+        <button class="btn ghost small" id="home-newset" style="flex:1">Neues Buch</button>
       </div>
       <div class="row" style="margin-bottom:8px">
         <select id="home-lesson" class="grow" style="display:none"></select>
@@ -481,7 +482,7 @@ function renderHome(){
   sel.innerHTML='';
   db.books.forEach(function(b,i){
     var o=document.createElement('option');
-    o.value=i;o.textContent=langIcon(b.lang)+' — '+b.name;
+    o.value=i;o.textContent=langOf(b.lang).flag+' '+b.name;
     if(i===db.aktiv)o.selected=true;
     sel.appendChild(o);
   });
