@@ -41,7 +41,8 @@ h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);fo
 .card{background:#fff;border-radius:var(--r);border:1px solid var(--hairline);padding:16px;margin-bottom:12px}
 .bigbtn{
   width:100%;border:none;border-radius:var(--r);background:var(--accent);color:#fff;
-  font-size:1.1rem;font-weight:700;padding:17px;cursor:pointer;letter-spacing:-.01em;
+  font-size:1.1rem;font-weight:700;padding:15px 14px;cursor:pointer;letter-spacing:-.01em;
+  white-space:normal;overflow-wrap:anywhere;line-height:1.3;
 }
 .bigbtn:active{transform:scale(.98);opacity:.9}
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -473,7 +474,8 @@ function renderHome(){
   var ps=curPairs();
   var learned=ps.filter(isLTM).length;
   var due=ps.filter(isDue).length;
-  $('home-setname').textContent='▶ '+book().name+(db.lesson>=0?' · '+book().lessons[db.lesson].name:'');
+  var bn=$('home-setname');
+  bn.innerHTML='▶ '+langOf(book().lang).flag+' '+esc(book().name)+(db.lesson>=0?'<br><span style="font-size:.85rem;font-weight:600;opacity:.85">'+esc(book().lessons[db.lesson].name)+'</span>':'');
   $('home-setinfo').textContent=ps.length+' Wörter · '+due+' sind heute dran · '+learned+' im Langzeitgedächtnis 🧠';
   var sel=$('home-select');
   sel.innerHTML='';
