@@ -330,7 +330,13 @@ footer a:hover{color:var(--accent)}
         <span class="small">Alle Bücher als Datei</span>
       </div>
       <textarea id="ed-import" rows="4" placeholder="Sicherungs-Text hier einfügen …&#10;### Buchname [Sprache: Englisch]&#11;## Lektionsname&#10;word = Bedeutung 1; Bedeutung 2"></textarea>
-      <button class="btn small" id="ed-importbtn" style="margin-top:8px">Importieren (ersetzt alle Bücher)</button>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn small grow" id="ed-importadd" style="min-width:140px">Importieren (als neue Bücher)</button>
+        <button class="btn red small grow" id="ed-importbtn" style="min-width:140px">Importieren (ersetzt alles)</button>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
+      </div>
     </div>
   </div>
 
@@ -1294,18 +1300,40 @@ $('ed-export').addEventListener('click',function(){
     setTimeout(function(){try{URL.revokeObjectURL(a.href);}catch(e){}},3000);
   }catch(e){alert('Export fehlgeschlagen: '+e);}
 });
-$('ed-importbtn').addEventListener('click',function(){
+function doImport(mode){
   var txt=$('ed-import').value;
   if(!txt.trim()){alert('Bitte zuerst den Sicherungs-Text oben einfügen.');return;}
   var books=parseExport(txt);
   if(!books.length){alert('Keine Wörter im Text gefunden. Format: „wort = Bedeutung 1; Bedeutung 2“ pro Zeile, Bücher mit „### Buchname“, Lektionen mit „## Lektionsname“.');return;}
   var anzahl=0;books.forEach(function(b){b.lessons.forEach(function(l){anzahl+=l.pairs.length;});});
-  if(!confirm(books.length+' Buch/Bücher mit '+anzahl+' Wörtern importieren?\n(Damit werden deine aktuellen Bücher ERSETZT — vorher sichern!)'))return;
-  db.books=books;db.aktiv=0;db.lesson=-1;
+  if(mode==='replace'){
+    if(!confirm(books.length+' Buch/Bücher mit '+anzahl+' Wörtern importieren?\n(Damit werden deine aktuellen Bücher ERSETZT — vorher sichern!)'))return;
+    db.books=books;db.aktiv=0;
+  }else{
+    if(!confirm(books.length+' Buch/Bücher mit '+anzahl+' Wörtern als NEUE Bücher hinzufügen?\n(Deine bestehenden Bücher bleiben erhalten.)'))return;
+    db.books=db.books.concat(books);db.aktiv=db.books.length-1;
+  }
+  db.lesson=-1;
   save();
   $('ed-import').value='';
   renderEd();renderHome();
+}
+$('ed-campus').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='Lade …';
+  fetch('campusA.txt').then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(function(txt){
+    $('ed-import').value=txt;
+    doImport('add');
+  }).catch(function(e){
+    alert('Download fehlgeschlagen: '+e);
+  }).finally(function(){
+    btn.disabled=false;btn.textContent='🏛️ Campus A-Wortschatz laden';
+  });
 });
+$('ed-importbtn').addEventListener('click',function(){doImport('replace');});
+$('ed-importadd').addEventListener('click',function(){doImport('add');});
 function parseExport(txt){
   var books=[],curBook=null,curLesson=null;
   function mkBook(name,lang){ curBook={name:name||'Importiertes Buch',lang:lang||'en',lessons:[]};books.push(curBook);curLesson=null; }
