@@ -48,6 +48,30 @@ h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);fo
 }
 .duebtn:active{transform:scale(.98)}
 .duebtn.calm{background:#fff;color:#5d7494;border:1.5px solid #d5d5da;box-shadow:none;font-weight:700;font-size:1rem;padding:13px}
+.bookrow{
+  display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--hairline);
+  border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer;width:100%;text-align:left;
+  font-family:inherit;
+}
+.bookrow:active{background:#f4f7fb}
+.bookrow .bico{
+  flex:0 0 auto;width:46px;height:58px;border-radius:8px;background:#eef3fa;
+  display:flex;align-items:center;justify-content:center;font-size:1.6rem;
+  box-shadow:inset -3px 0 0 rgba(0,0,0,.06);
+}
+.bookrow .btxt{flex:1;min-width:0}
+.bookrow .bname{font-weight:800;font-size:1rem;letter-spacing:-.01em;overflow-wrap:anywhere}
+.bookrow .bsub{font-size:.78rem;color:var(--ink2);margin-top:2px}
+.bookrow .bstat{flex:0 0 auto;text-align:center;min-width:52px}
+.bookrow .bdue{
+  width:38px;height:38px;border-radius:50%;background:#ff7a00;color:#fff;font-weight:800;font-size:1rem;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 2px;
+}
+.bookrow .bwait{
+  width:38px;height:38px;border-radius:50%;border:2px dashed #c3ccd8;color:#8a97a8;font-size:1rem;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 2px;
+}
+.bookrow .bstat small{display:block;font-size:.68rem;font-weight:700;color:var(--ink2)}
 .bigbtn{
   width:100%;border:none;border-radius:var(--r);background:var(--accent);color:#fff;
   font-size:1.1rem;font-weight:700;padding:15px 14px;cursor:pointer;letter-spacing:-.01em;
@@ -161,8 +185,7 @@ footer a:hover{color:var(--accent)}
   <!-- ============ HOME ============ -->
   <div class="view active" id="v-home">
     <h1 class="logo">🦸 Vokabel-Held</h1>
-    <button class="duebtn" id="home-due">⏰ …</button>
-    <p class="small center" id="home-setinfo" style="margin:6px 0 2px"></p>
+    <div id="booklist"></div>
     <div class="modes">
       <button class="mode" data-go="learn"><span class="ic">📚</span>Lernen</button>
       <button class="mode" data-go="timer"><span class="ic">🎯</span>Zeitfresser</button>
@@ -171,11 +194,7 @@ footer a:hover{color:var(--accent)}
     </div>
     <div class="card" style="margin-top:12px">
       <div class="row" style="margin-bottom:8px">
-        <select id="home-select" class="grow" style="flex:2.2"></select>
-        <button class="btn ghost small" id="home-newset" style="flex:1">Neues Buch</button>
-      </div>
-      <div class="row" style="margin-bottom:8px">
-        <select id="home-lesson" class="grow" style="display:none"></select>
+        <button class="btn ghost small grow" id="home-newset">＋ Neues Buch</button>
       </div>
       <div class="row" style="margin-bottom:8px">
         <button class="btn ghost grow" id="home-report">📊 Report</button>
@@ -536,67 +555,51 @@ function goHome(){
 }
 
 /* ---------- Home ---------- */
-function renderHome(){
-  var ps=poolPairs();
-  var learned=ps.filter(isLTM).length;
-  var due=ps.filter(isDue).length;
-  var tot=poolCountTotal();
-  $('home-setinfo').textContent=langOf(book().lang).flag+' '+book().name+' · '+ps.length+(tot!==ps.length?'/'+tot:'')+' im Pool · '+learned+' im Langzeitgedächtnis 🧠';
-  /* Faelig-Button */
-  var db2=$('home-due');
-  db2.classList.remove('calm');
-  if(!ps.length){
-    db2.classList.add('calm');
-    db2.textContent='📚 Noch nichts im Pool — erst „Mein Wortschatz“ füllen';
-  }else if(due>0){
-    db2.textContent='⏰ Heute fällig: '+due+' '+(due===1?'Wort':'Wörter')+' — jetzt üben!';
-  }else{
-    var spare=nextSpares(10);
-    var naechster=null;
-    ps.forEach(function(p){ if(isLTM(p))return; var d=dueAt(p); if(naechster===null||d<naechster)naechster=d; });
-    if(spare.length){
-      db2.textContent='➕ Noch '+spare.length+' '+(spare.length===1?'Wort':'Wörter')+' üben';
-    }else if(naechster===null){ db2.classList.add('calm'); db2.textContent='🧠 Alles im Langzeitgedächtnis!'; }
-    else{
-      var tage=Math.max(1,Math.ceil((naechster-Date.now())/DAY));
-      db2.classList.add('calm');
-      db2.textContent='⏰ In '+tage+' '+(tage===1?'Tag':'Tagen')+' wieder fällig — super gemacht!';
-    }
-  }
-  var sel=$('home-select');
-  sel.innerHTML='';
-  db.books.forEach(function(b,i){
-    var o=document.createElement('option');
-    o.value=i;o.textContent=langOf(b.lang).flag+' '+b.name;
-    if(i===db.aktiv)o.selected=true;
-    sel.appendChild(o);
-  });
-  var lsel=$('home-lesson');
-  lsel.innerHTML='';
-  var oAll=document.createElement('option');oAll.textContent='📖 Alle Lektionen';oAll.value='-1';lsel.appendChild(oAll);
-  book().lessons.forEach(function(l,i){
-    var o=document.createElement('option');o.value=i;o.textContent=l.name;lsel.appendChild(o);
-  });
-  lsel.value=String(db.lesson);
-  lsel.style.display='none'; /* Auswahl uebernimmt 'Mein Wortschatz' */
+function bookPool(b){
+  var all=[];b.lessons.forEach(function(l){all=all.concat(l.pairs);});
+  return all.filter(function(p){return p.akt!==false;});
 }
-$('home-select').addEventListener('change',function(){
-  db.aktiv=parseInt(this.value,10)||0;db.lesson=-1;save();renderHome();
-});
-$('home-lesson').addEventListener('change',function(){
-  db.lesson=parseInt(this.value,10);if(isNaN(db.lesson))db.lesson=-1;save();renderHome();
-});
+function renderHome(){
+  var list=$('booklist');
+  list.innerHTML='';
+  db.books.forEach(function(b,i){
+    var ps=bookPool(b);
+    var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
+    var ltm=ps.filter(isLTM).length;
+    var row=document.createElement('button');
+    row.className='bookrow';
+    var ico=document.createElement('span');ico.className='bico';ico.textContent=langOf(b.lang).flag;
+    var txt=document.createElement('span');txt.className='btxt';
+    txt.innerHTML='<div class="bname">'+esc(b.name)+'</div><div class="bsub">'+ps.length+' im Pool · '+ltm+' 🧠</div>';
+    var stat=document.createElement('span');stat.className='bstat';
+    if(!ps.length){
+      stat.innerHTML='<span class="bwait">📚</span><small>leer</small>';
+    }else if(due>0){
+      stat.innerHTML='<span class="bdue">'+due+'</span><small>üben</small>';
+    }else{
+      var naechster=null;
+      ps.forEach(function(p){ if(isLTM(p))return; var d=dueAt(p); if(naechster===null||d<naechster)naechster=d; });
+      if(naechster===null){
+        stat.innerHTML='<span class="bwait">🧠</span><small>fertig</small>';
+      }else{
+        var tage=Math.max(1,Math.ceil((naechster-Date.now())/DAY));
+        stat.innerHTML='<span class="bwait">⏰</span><small>in '+(tage===1?'1 Tag':tage+' Tagen')+'</small>';
+      }
+    }
+    row.appendChild(ico);row.appendChild(txt);row.appendChild(stat);
+    row.addEventListener('click',function(){
+      db.aktiv=i;db.lesson=-1;save();
+      if(!ps.length){renderHome();show('ws');return;}
+      if(due>0){startLearn(true);return;}
+      alert('In „'+b.name+'“ ist nichts fällig — weiter geht\'s, wenn die Wörter wieder dran sind. 👍');
+      renderHome();
+    });
+    list.appendChild(row);
+  });
+}
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
-$('home-due').addEventListener('click',function(){
-  var ps=poolPairs();
-  var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
-  if(due>0){startLearn(true);return;}
-  var spare=nextSpares(10);
-  if(spare.length){startLearn(false,spare);return;}
-  startLearn(true);
-});
 updateModeBtn();
 Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
   b.addEventListener('click',function(){
@@ -813,18 +816,10 @@ function learnEnd(){
   var emoji=L.falsch===0?'🏅':'🎉';
   r.innerHTML=resultHtml('Session geschafft!',
     [['Richtig ✅',L.richtig],['Falsch ❌',L.falsch],['Tips 💡',L.tips]],emoji);
-  /* "Nochmal!" raus — stattdessen 10 freiwillige Woerter */
   var again=r.querySelector('#__again');
   if(again)again.parentNode.removeChild(again);
-  var spare=nextSpares(10);
-  if(spare.length){
-    var extra=document.createElement('button');
-    extra.className='btn green';
-    extra.textContent='➕ Noch '+spare.length+' '+(spare.length===1?'Wort':'Wörter')+' üben';
-    extra.addEventListener('click',function(){ startLearn(false,spare); });
-    var homeBtn=r.querySelector('#__home');
-    r.querySelector('.row').insertBefore(extra,homeBtn);
-  }
+  var homeBtn=r.querySelector('#__home');
+  if(homeBtn)homeBtn.classList.add('green');
   wireResult(r,startLearn);
 }
 function nextSpares(n){
