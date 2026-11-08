@@ -18,8 +18,11 @@ body{
 .view.active{display:block}
 /* Lern-Ansicht bildschirmfuellend: Karte streckt, Buttons unten am Daumen */
 #v-learn.active{display:flex;flex-direction:column}
-#v-learn .vcard{flex:1;display:flex;flex-direction:column;justify-content:center;margin-bottom:6px}
-#v-learn .flipwrap{margin-top:auto}
+#v-learn .vcard{flex:1;display:flex;flex-direction:column;margin-bottom:6px}
+#v-learn .flipwrap{flex:1;display:flex;flex-direction:column;min-height:0}
+#v-learn .flipwrap[style*="display: none"]{display:none !important}
+#l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:#2f6fb3}
+#l-reveal{margin-top:auto}
 #v-learn .answerrow{margin-top:auto}
 h1.logo{font-size:1.6rem;text-align:center;margin:6px 0 14px;color:#2f6fb3;letter-spacing:.5px}
 .card{background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(47,111,179,.12);padding:14px;margin-bottom:12px}
@@ -182,7 +185,7 @@ footer a:hover{color:#2f6fb3}
       </div>
       <div id="l-flipwrap" class="flipwrap" style="display:none;margin-top:auto">
         <button class="btn yellow" id="l-reveal" style="width:100%;font-size:1.15rem;padding:1rem 0">🔄 Lösung zeigen</button>
-        <div class="vword" id="l-solution" style="display:none;font-size:1.6rem;margin:10px 0 4px"></div>
+        <div id="l-solution" style="display:none"></div>
         <div class="row" id="l-knowrow" style="display:none;margin-top:10px;gap:8px">
           <button class="btn grow" id="l-noknow" style="background:#e5484d;color:#fff;font-size:1.1rem;padding:1.05rem 0">✗ Nicht gewusst</button>
           <button class="btn grow" id="l-know" style="background:#2e9e5b;color:#fff;font-size:1.1rem;padding:1.05rem 0">✓ Gewusst</button>
