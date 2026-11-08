@@ -179,8 +179,8 @@ footer a:hover{color:#2f6fb3}
         <button class="btn yellow" id="l-reveal" style="width:100%">🔄 Lösung zeigen</button>
         <div class="vword" id="l-solution" style="display:none;font-size:1.6rem;margin:10px 0 4px"></div>
         <div class="row" id="l-knowrow" style="display:none;margin-top:10px;gap:8px">
-          <button class="btn grow" id="l-know" style="background:#2e9e5b;color:#fff;font-size:1.05rem;padding:.8rem 0">✓ Gewusst</button>
           <button class="btn grow" id="l-noknow" style="background:#e5484d;color:#fff;font-size:1.05rem;padding:.8rem 0">✗ Nicht gewusst</button>
+          <button class="btn grow" id="l-know" style="background:#2e9e5b;color:#fff;font-size:1.05rem;padding:.8rem 0">✓ Gewusst</button>
         </div>
       </div>
       <div class="fb" id="l-fb"></div>
@@ -529,7 +529,11 @@ function flipJudge(right){
     L.queue.shift();
     var pos=Math.min(2,L.queue.length);
     L.queue.splice(pos,0,L.cur);
-    $('l-next').style.display='';
+    setTimeout(function(){
+      if(!L)return;
+      var c=$('l-card');c.classList.remove('ok','bad','shake','flashok');
+      renderLearn();
+    },1600);
   }
 }
 function renderLevelBar(el,lvl){
