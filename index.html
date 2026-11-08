@@ -56,6 +56,8 @@ h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);fo
   font-family:inherit;
 }
 .bookrow:active{background:#f4f7fb}
+.bookrow.eig{border:2px solid var(--accent);background:#f3f8fe;position:relative}
+.bookrow.eig .bname::after{content:' ✓ aktiv';font-size:.7rem;font-weight:800;color:var(--accent);white-space:nowrap}
 .bookrow .bico{
   flex:0 0 auto;width:46px;height:58px;border-radius:8px;background:#eef3fa;
   display:flex;align-items:center;justify-content:center;font-size:1.6rem;
@@ -599,7 +601,7 @@ function renderHome(){
     var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
     var ltm=ps.filter(isLTM).length;
     var row=document.createElement('button');
-    row.className='bookrow';
+    row.className='bookrow'+(i===db.aktiv?' eig':'');
     var ico=document.createElement('span');ico.className='bico';ico.textContent=langOf(b.lang).flag;
     var txt=document.createElement('span');txt.className='btxt';
     txt.innerHTML='<div class="bname">'+esc(b.name)+'</div><div class="bsub">'+ps.length+' im Pool · '+ltm+' 🧠</div>';
