@@ -107,6 +107,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#2f6fb3}
 .result td:last-child{text-align:right;font-weight:800}
 /* Editor */
 .edrow{display:grid;grid-template-columns:1fr 22px 1fr auto auto;gap:6px;align-items:center;margin-bottom:8px}
+.edrow.sub{grid-template-columns:22px 1fr auto}
+.edrow.sub input{padding:11px 10px}
 .edrow input{padding:9px 10px;font-size:.95rem;min-width:0}
 .edrow .arrow{color:#3d4a59;text-align:center;font-weight:800}
 .badge{font-size:.8rem;white-space:nowrap;background:#fff6c2;border-radius:999px;padding:5px 7px;font-weight:800}
@@ -1149,7 +1151,7 @@ function renderEd(){
     for(var k=1;k<Math.max(p.m.length,2);k++){
       (function(kk){
         var r2=document.createElement('div');
-        r2.className='edrow';r2.style.marginTop='4px';
+        r2.className='edrow sub';r2.style.marginTop='5px';
         var sp=document.createElement('span');
         sp.className='arrow';sp.textContent=kk<p.m.length?'·':'＋';
         var mi=document.createElement('input');
