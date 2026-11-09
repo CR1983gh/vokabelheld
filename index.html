@@ -233,13 +233,38 @@ footer a:hover{color:var(--accent)}
       <button class="btn ghost" id="bd-tests" style="width:100%">Tests und Aufgaben</button>
       <button class="btn" id="bd-reg" style="width:100%;background:#ff9f0a;color:#fff;border:none;font-weight:800">Reguläre Übung (0)</button>
     </div>
-    <div class="card" id="bd-tests-menu" style="display:none;margin-top:12px">
-      <b style="font-size:.9rem">Tests und Aufgaben</b>
-      <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
-        <button class="btn ghost small grow" data-go="timer">🎯 Zeitfresser</button>
-        <button class="btn ghost small grow" data-go="diktat">✍️ Diktat</button>
-        <button class="btn ghost small grow" data-go="duel">🏆 Duell</button>
+  </div>
+
+  <!-- ============ TESTS ============ -->
+  <div class="view" id="v-tests">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost small" data-home>← Home</button>
+    </div>
+    <div class="bookbar">📖 <select class="bookpick" id="ts-pick"></select></div>
+    <div class="card">
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <b style="flex:1;min-width:120px">Meine Tests</b>
+        <button class="btn green small" id="ts-new">＋ Neuen Test anlegen</button>
       </div>
+      <div id="ts-list" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- ============ TEST-EDITOR ============ -->
+  <div class="view" id="v-testedit">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost small" id="te-back">← Zurück</button>
+    </div>
+    <div class="card">
+      <b>Neuen Test anlegen</b>
+      <input id="te-name" type="text" placeholder="Name des Tests (z.B. Lektion 5 Schulaufgabe)" style="width:100%;margin-top:8px;font-size:1rem;padding:10px;border:1px solid var(--line,#e4e4e9);border-radius:10px">
+      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+        <select id="te-lesson" class="grow"></select>
+        <button class="btn ghost small" id="te-allles">Alle Lektionen</button>
+      </div>
+      <p class="small" id="te-info" style="margin:8px 0 0"></p>
+      <div id="te-list" style="margin-top:6px;max-height:52vh;overflow:auto"></div>
+      <button class="btn green" id="te-save" style="width:100%;margin-top:10px">Test speichern (0 Wörter)</button>
     </div>
   </div>
 
@@ -532,11 +557,14 @@ function ensure(){
     if(typeof b.name!=='string')b.name='Buch';
     if(!b.lang||!LANGS.some(function(L){return L.id===b.lang;}))b.lang='en';
     if(!Array.isArray(b.lessons)||!b.lessons.length)b.lessons=[{name:'Lektion 1',pairs:[]}];
+    if(!Array.isArray(b.tests))b.tests=[];
     if(db.lesson>=b.lessons.length)db.lesson=-1;
     b.lessons.forEach(function(l){
       if(typeof l.name!=='string')l.name='Lektion';
       if(!Array.isArray(l.pairs))l.pairs=[];
+      if(!b.uidSeq)b.uidSeq=1;
       l.pairs.forEach(function(p){
+        if(!p.id)p.id='w'+(b.uidSeq++);
         p.w=String(p.w||'');
         if(!Array.isArray(p.m))p.m=p.m?[String(p.m)]:[];
         /* Migration: 'Sklavin, Dienerin' -> eigene Bedeutungs-Felder; Kommata in Klammern bleiben */
@@ -580,12 +608,20 @@ function load(){
 function save(){
   try{localStorage.setItem(LS,JSON.stringify(db));}catch(e){}
 }
+function stampIds(){
+  /* neue Woerter sofort mit stabiler ID versehen (auch vor dem naechsten Laden) */
+  if(!db||!Array.isArray(db.books))return;
+  db.books.forEach(function(b){
+    if(!b.uidSeq)b.uidSeq=1;
+    (b.lessons||[]).forEach(function(l){(l.pairs||[]).forEach(function(p){ if(!p.id)p.id='w'+(b.uidSeq++); });});
+  });
+}
 function set(){return book();}
 function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catch(e){return {};}}
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws','book'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -674,6 +710,7 @@ function zuletztText(b){
   if(t<2*DAY)return 'Zuletzt gelernt: Gestern';
   return 'Zuletzt gelernt: vor '+Math.floor(t/DAY)+' Tagen';
 }
+function bookTests(){ var b=set(); if(!Array.isArray(b.tests))b.tests=[]; return b.tests; }
 function openBook(i){
   db.aktiv=i;db.lesson=-1;save();
   renderBook();
@@ -774,7 +811,7 @@ function startLearn(onlyDue,presetIdx){
   /* Reihenfolge: niedrigste Stufe zuerst, dann aufsteigend; innerhalb gleicher Stufe zufaellig */
   var q=shuffle(idx);
   q.sort(function(a,b){ return (ps[a].level||0)-(ps[b].level||0); });
-  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false};
+  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,test:null,ws:function(){return poolPairs();}};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
@@ -783,7 +820,7 @@ function startLearn(onlyDue,presetIdx){
 function renderLearn(){
   if(!L)return;
   if(!L.queue.length){return learnEnd();}
-  var p=poolPairs()[L.queue[0]];
+  var p=L.ws()[L.queue[0]];
   if(!p){L.queue.shift();return renderLearn();}
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
@@ -808,7 +845,7 @@ function renderLearn(){
 $('l-mode').addEventListener('click',function(){ FLIP=!FLIP; saveFlip(); updateModeBtn(); if(L) renderLearn(); });
 $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
-  var p=poolPairs()[L.cur]; if(!p)return;
+  var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
   $('l-solution').textContent=dispM(p);
   $('l-solution').style.display='';
@@ -818,15 +855,15 @@ $('l-know').addEventListener('click',function(){ flipJudge(true); });
 $('l-noknow').addEventListener('click',function(){ flipJudge(false); });
 function flipJudge(right){
   if(!L||L.locked)return;
-  var p=poolPairs()[L.cur]; if(!p)return;
+  var p=L.ws()[L.cur]; if(!p)return;
   L.locked=true; L.done++;
   var card=$('l-card'), fb=$('l-fb');
   $('l-knowrow').style.display='none';
   if(right){
     L.richtig++;
-    var up=levelUp(p);
-    p.zuletzt=Date.now(); /* Stempel: heute geuebt */
-    save();
+    var up=L.test?false:levelUp(p);
+    if(!L.test)p.zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
+    if(!L.test)save();
     fb.className='fb ok';
     fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
     card.classList.add('ok','flashok');
@@ -840,9 +877,7 @@ function flipJudge(right){
     },700);
   }else{
     L.falsch++;
-    levelDown(p);
-    p.falsch++;
-    save();
+    if(!L.test){levelDown(p);p.falsch++;save();}
     fb.className='fb bad';
     fb.innerHTML='Nicht gewusst 😖<span class="sub">'+esc(p.w)+' = '+esc(dispM(p))+'</span>';
     card.classList.add('bad','shake');
@@ -864,14 +899,14 @@ function renderLevelBar(el,lvl){
   el.innerHTML=h;
 }
 function updateLProg(){
-  var ps=poolPairs();
+  var ps=L.ws();
   var sum=0;ps.forEach(function(p){sum+=p.level;});
   var avg=ps.length?(sum/ps.length):0;
   $('l-prog').textContent=L.done+'/'+L.total+' · Level Ø '+avg.toFixed(1);
 }
 $('l-hint').addEventListener('click',function(){
   if(!L||L.locked||L.hint)return;
-  var p=poolPairs()[L.cur];if(!p)return;
+  var p=L.ws()[L.cur];if(!p)return;
   L.hint=true;
   this.disabled=true;
   $('l-hintline').textContent='Tipp: '+(p.m[0]||'?').charAt(0)+'…  (zählt nicht als richtig)';
@@ -885,7 +920,7 @@ $('l-next').addEventListener('click',function(){
 });
 function learnCheck(){
   if(!L||L.locked)return;
-  var p=poolPairs()[L.cur];if(!p)return;
+  var p=L.ws()[L.cur];if(!p)return;
   var val=$('l-in').value;
   if(!norm(val))return;
   L.locked=true;
@@ -901,9 +936,9 @@ function learnCheck(){
     card.classList.add('bad');
   }else if(right){
     L.richtig++;
-    var up=levelUp(p);
-    p.zuletzt=Date.now(); /* Stempel: heute geuebt */
-    save();
+    var up=L.test?false:levelUp(p);
+    if(!L.test)p.zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
+    if(!L.test)save();
     fb.className='fb ok';
     fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
     card.classList.add('ok','flashok');
@@ -918,9 +953,7 @@ function learnCheck(){
     return;
   }else{
     L.falsch++;
-    levelDown(p);
-    p.falsch++;
-    save();
+    if(!L.test){levelDown(p);p.falsch++;save();}
     fb.className='fb bad';
     fb.innerHTML='Leider daneben 😖<span class="sub">Richtig: '+esc(dispM(p))+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
     card.classList.add('bad','shake');
@@ -944,6 +977,10 @@ function learnEnd(){
   if(again)again.parentNode.removeChild(again);
   var homeBtn=r.querySelector('#__home');
   if(homeBtn)homeBtn.classList.add('green');
+  if(L&&L.test){
+    if(homeBtn){homeBtn.textContent='Zurück zu den Tests';homeBtn.addEventListener('click',function(){L=null;renderTests();show('tests');});}
+    return;
+  }
   wireResult(r,startLearn);
 }
 function nextSpares(n){
@@ -1213,6 +1250,113 @@ var STUFE_INFO=[
   ['⭐⭐⭐⭐⭐⭐','Stufe 6','Fast geschafft','nach 90 Tagen'],
   ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
 ];
+/* ---------- TESTS ---------- */
+var TE=null; /* Editor-Zustand */
+$('bd-tests').addEventListener('click',function(){ stampIds(); renderTests(); show('tests'); });
+function renderTests(){
+  var ts=bookTests();
+  var list=$('ts-list');
+  if(!ts.length){ list.innerHTML='<p class="small center" style="margin:6px 0">Noch keine Tests. Lege oben deinen ersten Test an – z.B. für die nächste Schulaufgabe.</p>'; return; }
+  var h='';
+  ts.forEach(function(t,i){
+    var n=t.ids.length;
+    h+='<div class="card" style="margin:8px 0;padding:10px 12px">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:140px"><b>'+esc(t.name)+'</b><div class="small" style="color:#5d7494">'+n+' Wörter · unabhängig vom normalen Lernen</div></div>'
+      +'<button class="btn small" data-tstart="'+i+'" style="min-width:90px">Üben</button>'
+      +'<button class="btn ghost small" data-tedit="'+i+'" title="Wörter bearbeiten">✏️</button>'
+      +'<button class="btn red small" data-tdel="'+i+'" title="Test löschen">🗑</button>'
+      +'</div></div>';
+  });
+  list.innerHTML=h;
+  Array.prototype.forEach.call(list.querySelectorAll('[data-tstart]'),function(b){
+    b.addEventListener('click',function(){ startTestSession(ts[parseInt(b.dataset.tstart,10)]); });
+  });
+  Array.prototype.forEach.call(list.querySelectorAll('[data-tedit]'),function(b){
+    b.addEventListener('click',function(){ openTestEdit(ts[parseInt(b.dataset.tedit,10)]); });
+  });
+  Array.prototype.forEach.call(list.querySelectorAll('[data-tdel]'),function(b){
+    b.addEventListener('click',function(){
+      var t=ts[parseInt(b.dataset.tdel,10)];
+      if(!confirm('Test „'+t.name+'“ wirklich löschen?'))return;
+      ts.splice(parseInt(b.dataset.tdel,10),1); save(); renderTests();
+    });
+  });
+}
+function allBookPairs(){ var all=[];set().lessons.forEach(function(l){l.pairs.forEach(function(p){all.push({p:p,l:l});});}); return all; }
+function openTestEdit(t){
+  var lessons=set().lessons;
+  TE={ test:t||null, name:t?t.name:'', lesson:0, chosen:{} };
+  if(t)t.ids.forEach(function(id){TE.chosen[id]=true;});
+  $('te-name').value=TE.name;
+  var sel=$('te-lesson');
+  sel.innerHTML='';
+  lessons.forEach(function(l,i){
+    var o=document.createElement('option');o.value=i;o.textContent=l.name+' ('+l.pairs.length+')';
+    sel.appendChild(o);
+  });
+  renderTeList();
+  show('testedit');
+}
+function renderTeList(){
+  var l=set().lessons[TE.lesson];
+  var cnt=Object.keys(TE.chosen).length;
+  $('te-info').textContent=cnt+' Wörter ausgewählt';
+  $('te-save').textContent='Test speichern ('+cnt+' Wörter)';
+  var h='';
+  l.pairs.forEach(function(p,pi){
+    var on=TE.chosen[p.id]?' on':'';
+    h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line,#eee)">'
+      +'<input type="checkbox" data-te="'+pi+'" '+(TE.chosen[p.id]?'checked':'')+'>'
+      +'<span style="flex:1;min-width:0"><b>'+esc(p.w)+'</b> <span style="color:#5d7494">'+esc(dispM(p))+'</span></span>'
+      +'</label>';
+  });
+  $('te-list').innerHTML=h||'<p class="small">Diese Lektion ist leer.</p>';
+  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-te]'),function(cb){
+    cb.addEventListener('change',function(){
+      var p=l.pairs[parseInt(cb.dataset.te,10)];
+      if(cb.checked)TE.chosen[p.id]=true; else delete TE.chosen[p.id];
+      var lab=cb.closest('label'); if(lab)lab.classList.toggle('on',cb.checked);
+      var c=Object.keys(TE.chosen).length;
+      $('te-info').textContent=c+' Wörter ausgewählt';
+      $('te-save').textContent='Test speichern ('+c+' Wörter)';
+    });
+  });
+}
+$('te-lesson').addEventListener('change',function(){ TE.lesson=parseInt(this.value,10)||0; renderTeList(); });
+$('te-allles').addEventListener('click',function(){
+  allBookPairs().forEach(function(x){
+    if(x.p.akt!==false)TE.chosen[x.p.id]=true;
+  });
+  renderTeList();
+});
+$('te-back').addEventListener('click',function(){ renderTests(); show('tests'); });
+$('te-save').addEventListener('click',function(){
+  var ids=Object.keys(TE.chosen);
+  if(!ids.length){alert('Bitte mindestens ein Wort auswählen.');return;}
+  var name=$('te-name').value.trim()||('Test '+(bookTests().length+1));
+  if(TE.test){ TE.test.name=name; TE.test.ids=ids; }
+  else bookTests().push({name:name,ids:ids});
+  save();
+  TE=null;
+  renderTests(); show('tests');
+});
+$('ts-new').addEventListener('click',function(){ stampIds(); openTestEdit(null); });
+function startTestSession(t){
+  var all=allBookPairs();
+  var map={}; all.forEach(function(x,i){map[x.p.id]=x.p;});
+  var ps=t.ids.map(function(id){return map[id];}).filter(Boolean);
+  if(!ps.length){alert('Der Test ist leer (Wörter wurden vielleicht gelöscht). Bearbeite ihn neu.');return;}
+  markLearned();
+  var q=shuffle(ps.map(function(_,i){return i;}));
+  L={queue:q,total:ps.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,
+     test:t.name, ws:function(){return ps;}};
+  show('learn');
+  $('l-result').style.display='none';
+  $('l-card').style.display='';
+  renderLearn();
+}
+
 var RPT_SEL=null;
 function renderReport(){
   var ps=poolPairs();
