@@ -464,9 +464,14 @@ function isLTM(p){return (p.level||0)>=7;}
 var DUE=[0,0,1,3,9,29,90];
 var DAY=86400000;
 function dueAt(p){ if(!p.zuletzt) return 0; return p.zuletzt + (DUE[Math.max(0,Math.min(6,p.level||0))]*DAY); }
-function isDue(p){ return !p.zuletzt || Date.now()>=dueAt(p); }
+function sameDay(a,b){ var da=new Date(a),db2=new Date(b); return da.getFullYear()===db2.getFullYear()&&da.getMonth()===db2.getMonth()&&da.getDate()===db2.getDate(); }
+function isDue(p){
+  if(!p.zuletzt) return true;
+  if(sameDay(p.zuletzt,Date.now())) return false; /* heute schon geuebt -> heute erledigt */
+  return Date.now()>=dueAt(p);
+}
 function levelUp(p){
-  if(!isDue(p)) return false; /* zu frueh: Stufe bleibt, Faelligkeit unveraendert */
+  if(!isDue(p)) return false; /* zu frueh: Stufe bleibt */
   p.level=Math.min(7,(p.level||0)+1); p.zuletzt=Date.now(); return true;
 }
 function levelDown(p){ var l=p.level||0; p.level = (l<=0)?0:(l<=2?1:l-2); p.zuletzt=Date.now(); }
@@ -820,6 +825,7 @@ function flipJudge(right){
   if(right){
     L.richtig++;
     var up=levelUp(p);
+    p.zuletzt=Date.now(); /* Stempel: heute geuebt */
     save();
     fb.className='fb ok';
     fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
@@ -896,6 +902,7 @@ function learnCheck(){
   }else if(right){
     L.richtig++;
     var up=levelUp(p);
+    p.zuletzt=Date.now(); /* Stempel: heute geuebt */
     save();
     fb.className='fb ok';
     fb.textContent=isLTM(p)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
