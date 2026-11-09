@@ -201,21 +201,12 @@ footer a:hover{color:var(--accent)}
   <div class="view active" id="v-home">
     <h1 class="logo">🦸 Vokabel-Held</h1>
     <div id="booklist"></div>
-    <div class="modes">
-      <button class="mode" data-go="learn"><span class="ic">📚</span>Lernen</button>
-      <button class="mode" data-go="timer"><span class="ic">🎯</span>Zeitfresser</button>
-      <button class="mode" data-go="diktat"><span class="ic">✍️</span>Diktat</button>
-      <button class="mode" data-go="duel"><span class="ic">🏆</span>Duell</button>
-    </div>
     <div class="card" style="margin-top:12px">
       <div class="row" style="margin-bottom:8px">
         <button class="btn ghost small grow" id="home-newset">＋ Neues Buch</button>
       </div>
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn ghost grow" id="home-report">📊 Report</button>
-      </div>
       <div class="row" style="margin-top:8px">
-        <button class="btn ghost grow" id="home-ws">📚 Mein Wortschatz</button>
+        <button class="btn ghost grow" id="home-report">📊 Report</button>
         <button class="btn ghost grow" id="home-editor">✍️ Editor</button>
       </div>
     </div>
@@ -239,6 +230,12 @@ footer a:hover{color:var(--accent)}
     </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
       <button class="btn ghost" id="bd-neu" style="width:100%">Neue Vokabeln (0)</button>
+      <div class="card" id="bd-neu-menu" style="display:none;padding:12px">
+        <div class="row" style="flex-wrap:wrap;gap:8px">
+          <button class="btn small grow" id="bd-neu-start" style="min-width:140px">📥 Neue Wörter lernen</button>
+          <button class="btn ghost small grow" id="bd-neu-ws" style="min-width:140px">📚 Mein Wortschatz</button>
+        </div>
+      </div>
       <button class="btn ghost" id="bd-tests" style="width:100%">Tests und Aufgaben</button>
       <button class="btn" id="bd-reg" style="width:100%;background:#ff9f0a;color:#fff;border:none;font-weight:800">Reguläre Übung (0)</button>
     </div>
@@ -671,9 +668,6 @@ function renderHome(){
     list.appendChild(row);
   });
 }
-function neuCount(b){
-  return bookPool(b).filter(function(p){return !p.level&&!isLTM(p);}).length;
-}
 function zuletztText(b){
   if(!b.zl)return 'Noch nie gelernt';
   var t=Date.now()-b.zl;
@@ -690,14 +684,14 @@ function renderBook(){
   var b=set(); if(!b)return;
   var ps=bookPool(b);
   var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
-  var neu=neuCount(b);
   $('bd-flag').textContent=langOf(b.lang).flag;
   $('bd-title').textContent=b.name;
   $('bd-sub').textContent=zuletztText(b);
   $('bd-due').textContent=due;
-  $('bd-neu').textContent='Neue Vokabeln ('+neu+')';
+  $('bd-neu').textContent='Neue Vokabeln ('+ps.length+')';
   $('bd-reg').textContent='Reguläre Übung ('+due+')';
   $('bd-tests-menu').style.display='none';
+  $('bd-neu-menu').style.display='none';
 }
 $('bd-heute').addEventListener('click',function(){
   var ps=bookPool(set());
@@ -709,12 +703,17 @@ $('bd-heute').addEventListener('click',function(){
 });
 $('bd-report').addEventListener('click',function(){renderReport();show('report');});
 $('bd-neu').addEventListener('click',function(){
+  var m=$('bd-neu-menu');
+  m.style.display=(m.style.display==='none')?'block':'none';
+});
+$('bd-neu-start').addEventListener('click',function(){
   var ps=poolPairs();
   var idx=[];
   ps.forEach(function(p,i){ if(!p.level&&!isLTM(p))idx.push(i); });
   if(!idx.length){alert('Keine neuen Wörter im aktiven Pool. Füge welche hinzu: „📚 Mein Wortschatz“.');return;}
   startLearn(false,idx);
 });
+$('bd-neu-ws').addEventListener('click',function(){ renderWs(); show('ws'); });
 $('bd-tests').addEventListener('click',function(){
   var m=$('bd-tests-menu');
   m.style.display=(m.style.display==='none')?'block':'none';
@@ -1428,7 +1427,6 @@ function renderWs(){
     list.appendChild(row);
   });
 }
-$('home-ws').addEventListener('click',function(){renderWs();show('ws');});
 $('ws-lesson').addEventListener('change',function(){WS.lesson=parseInt(this.value,10)||0;renderWs();});
 $('ws-search').addEventListener('input',function(){WS.search=this.value.trim();renderWs();});
 $('ws-all').addEventListener('click',function(){
