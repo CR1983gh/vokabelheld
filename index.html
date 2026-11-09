@@ -1321,9 +1321,9 @@ function renderTeList(){
       +'</div>'
       +'<div class="tewords" data-tewords="'+li+'" style="border-top:1px solid var(--line,#eee);'+(TE.kaps[li]?'':'display:none')+'">';
     visible.forEach(function(p){
-      h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px 10px 18px;border-bottom:1px solid var(--line,#f0f0f4);cursor:pointer">'
-        +'<input type="checkbox" data-te="'+p.id+'" '+(TE.chosen[p.id]?'checked':'')+' style="width:18px;height:18px;flex:none">'
-        +'<span style="flex:1;min-width:0;overflow-wrap:anywhere"><b>'+esc(p.w)+'</b> <span style="color:#5d7494">'+esc(dispM(p))+'</span></span>'
+      h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line,#f0f0f4);cursor:pointer">'
+        +'<input type="checkbox" data-te="'+p.id+'" '+(TE.chosen[p.id]?'checked':'')+' style="width:20px;height:20px;flex:none">'
+        +'<span style="flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4">'+esc(p.w)+' / <b>'+esc(dispM(p))+'</b></span>'
         +'</label>';
     });
     h+='</div></div>';
