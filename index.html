@@ -581,6 +581,7 @@ Array.prototype.forEach.call(document.querySelectorAll('.bookpick'),function(sel
   sel.addEventListener('change',function(){
     db.aktiv=parseInt(this.value,10)||0;
     db.lesson=-1;WS.lesson=0;
+    RPT_SEL=null;
     save();fillBookPicks();
     var v=currentView;
     if(v==='report')renderReport();
@@ -1125,6 +1126,7 @@ var STUFE_INFO=[
   ['⭐⭐⭐⭐⭐⭐','Stufe 6','Fast geschafft','nach 90 Tagen'],
   ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
 ];
+var RPT_SEL=null;
 function renderReport(){
   var ps=poolPairs();
   var groups=[[],[],[],[],[],[],[],[]];
@@ -1134,32 +1136,62 @@ function renderReport(){
     groups[l].push(p);
     if(l>0&&l<7&&isDue(p)) dueCount++;
   });
-  var h='<div class="card"><div class="levelbar">';
-  for(var i=0;i<8;i++){ h+='<span style="flex:1;text-align:center;font-size:.65rem;color:var(--muted,#33465c)">'+(i>=7?'🧠':i)+'</span>'; }
-  h+='</div><div style="display:flex;margin-top:4px">';
-  for(var j=0;j<8;j++){
-    h+='<span style="flex:'+groups[j].length+' 0 '+(ps.length?0:'1')+';background:'+(j>=7?'#8e4ec6':(j>=6?'#1a8f4a':'#ff9f0a'))+';min-width:'+(groups[j].length?'4px':'2px')+';height:10px;border-radius:5px;margin:0 1px" title="'+STUFE_INFO[j][1]+': '+groups[j].length+'"></span>'; }
-  h+='</div><p class="small center" style="margin:8px 0 0">'+ps.length+' Vokabeln · '+dueCount+' fällig zum Wiederholen</p></div>';
-  for(var k=7;k>=0;k--){
-    var g=groups[k];
-    h+='<div class="card" style="margin-top:10px;padding:10px 12px"><b>'+STUFE_INFO[k][0]+' '+STUFE_INFO[k][1]+' <span class="small" style="font-weight:400;color:#33465c">· '+STUFE_INFO[k][2]+' · '+STUFE_INFO[k][3]+'</span></b>';
-    h+='<p class="small" style="margin:2px 0 6px;color:#33465c">'+g.length+' Vokabeln'+(k===6?' 🎉':'')+'</p>';
-    if(g.length){
-      h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
-      g.forEach(function(p,gi){
-        if(k===7){
-          h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#33465c">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
-          return;
-        }
-        var over = k>0 && isDue(p);
-        var days = (!p.zuletzt||k===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
-        h+='<span style="border:1px solid '+(over?'#d70015':'#e4e4e9')+';background:'+(over?'#fdf3f4':'#fafafc')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#33465c"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&k>=2?' <span style="color:#33465c">in '+days+'d</span>':'')+'</span>';
-      });
-      h+='</div>';
-    }
-    h+='</div>';
+  var maxN=Math.max.apply(null,groups.map(function(g){return g.length;}).concat([1]));
+  if(RPT_SEL===null||RPT_SEL<0||RPT_SEL>7){
+    var best=0;
+    groups.forEach(function(g,i){ if(g.length>groups[best].length)best=i; });
+    RPT_SEL=best;
   }
+  var sel=RPT_SEL;
+  /* --- Balkendiagramm --- */
+  var h='<div class="card"><div style="display:flex;align-items:flex-end;gap:6px;height:150px;padding:0 2px">';
+  for(var i=0;i<8;i++){
+    var n=groups[i].length;
+    var hp=Math.max(n?10:4, Math.round(130*n/maxN));
+    var on=(i===sel);
+    var col=(i===7?'#8e4ec6':on?'#ff7a00':'#d7dce3');
+    h+='<div class="rpt-bar" data-i="'+i+'" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer">'
+      +'<span style="font-size:.72rem;font-weight:'+(on?'800':'600')+';color:'+(on?'#ff7a00':'#33465c')+';margin-bottom:3px">'+n+'</span>'
+      +'<div style="width:100%;height:'+hp+'px;background:'+col+';border-radius:7px 7px 3px 3px"></div>'
+      +'</div>';
+  }
+  h+='</div><div style="display:flex;gap:6px;padding:4px 2px 0">';
+  for(var j=0;j<8;j++){
+    var onj=(j===sel);
+    h+='<span style="flex:1;text-align:center;font-size:.72rem;font-weight:'+(onj?'800':'600')+';color:'+(onj?'#ff7a00':'#5d7494')+'">'+(j>=7?'🧠':j)+'</span>';
+  }
+  h+='</div><p class="small center" style="margin:10px 0 0">'+ps.length+' Wörter im Pool · '+dueCount+' fällig zum Wiederholen</p></div>';
+  /* --- Tier + Text der gewaehlten Stufe --- */
+  var TIERE=['🐣','🐥','🐢','🦊','🦁','🐉','🚀','🧠'];
+  var g=groups[sel];
+  var stufeText=sel>=7?'wird nicht mehr abgefragt':(sel<=1?'sofort wieder fällig':'nach '+DUE[sel]+' '+(DUE[sel]===1?'Tag':'Tagen')+' wieder fällig');
+  h+='<div class="card" style="text-align:center;margin-top:10px">'
+    +'<div style="font-size:3.4rem;line-height:1.15">'+(g.length?TIERE[sel]:'💤')+'</div>'
+    +'<div style="font-weight:800;font-size:1.05rem;margin-top:4px;letter-spacing:-.01em">'+g.length+' '+(g.length===1?'Wort':'Wörter')+' in '+(sel>=7?'🧠 Langzeitgedächtnis':'Stufe '+sel)+'</div>'
+    +'<p class="small" style="margin:4px 0 0">'+(g.length?stufeText:'Hier ist gerade nichts.')+'</p>'
+    +'</div>';
+  /* --- Worter der gewaehlten Stufe --- */
+  h+='<div class="card" style="margin-top:10px;padding:10px 12px">';
+  if(g.length){
+    h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    g.forEach(function(p){
+      if(sel===7){
+        h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#33465c">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
+        return;
+      }
+      var over = sel>0 && isDue(p);
+      var days = (!p.zuletzt||sel===0)?null:Math.floor((dueAt(p)-Date.now())/DAY);
+      h+='<span style="border:1px solid '+(over?'#d70015':'#e4e4e9')+';background:'+(over?'#fdf3f4':'#fafafc')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#33465c"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&sel>=2?' <span style="color:#33465c">in '+days+'d</span>':'')+'</span>';
+    });
+    h+='</div>';
+  }else{
+    h+='<p class="small center" style="margin:4px 0">Noch kein Wort in dieser Stufe.</p>';
+  }
+  h+='</div>';
   $('r-body').innerHTML=h;
+  Array.prototype.forEach.call($('r-body').querySelectorAll('.rpt-bar'),function(b){
+    b.addEventListener('click',function(){ RPT_SEL=parseInt(b.dataset.i,10); renderReport(); });
+  });
   Array.prototype.forEach.call($('r-body').querySelectorAll('.ltm-back'),function(b){
     b.addEventListener('click',function(){
       var p=ps[parseInt(b.dataset.i,10)]; if(!p)return;
