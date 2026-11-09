@@ -89,6 +89,17 @@ h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);fo
 }
 .mode span.ic{display:block;font-size:1.8rem;margin-bottom:7px}
 .mode:active{transform:scale(.97);background:#f0f4fa}
+.bookgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}
+.bcover{background:#fff;border:1px solid var(--line,#e4e4e9);border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.bcover .flagbig{font-size:4.4rem;line-height:1.1}
+.bcover .bctitle{font-weight:800;font-size:1.02rem;margin-top:8px;letter-spacing:-.01em;overflow-wrap:anywhere}
+.bcover .bcsub{font-size:.74rem;color:#5d7494;margin-top:8px}
+.bctiles{display:flex;flex-direction:column;gap:12px}
+.btile{background:#fff;border:1px solid var(--line,#e4e4e9);border-radius:18px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;padding:10px}
+.btile:active{transform:scale(.97);background:#f0f4fa}
+.btile .torange{width:52px;height:52px;border-radius:50%;background:#ff9f0a;color:#fff;font-weight:800;font-size:1.05rem;display:flex;align-items:center;justify-content:center}
+.btile .tic{font-size:1.9rem}
+.btile .tlab{font-weight:700;font-size:.86rem}
 .btn{
   border:none;border-radius:12px;background:var(--accent);color:#fff;
   font-size:1rem;font-weight:700;padding:13px 18px;cursor:pointer;letter-spacing:-.01em;
@@ -206,6 +217,37 @@ footer a:hover{color:var(--accent)}
       <div class="row" style="margin-top:8px">
         <button class="btn ghost grow" id="home-ws">📚 Mein Wortschatz</button>
         <button class="btn ghost grow" id="home-editor">✍️ Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BUCH-DETAIL ============ -->
+  <div class="view" id="v-book">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost small" data-home>← Home</button>
+    </div>
+    <div class="bookgrid">
+      <div class="bcover">
+        <div class="flagbig" id="bd-flag">🇬🇧</div>
+        <div class="bctitle" id="bd-title"></div>
+        <div class="bcsub" id="bd-sub"></div>
+      </div>
+      <div class="bctiles">
+        <button class="btile" id="bd-heute"><span class="torange" id="bd-due">0</span><span class="tlab">Heute</span></button>
+        <button class="btile" id="bd-report"><span class="tic">📊</span><span class="tlab">Reports</span></button>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn ghost" id="bd-neu" style="width:100%">Neue Vokabeln (0)</button>
+      <button class="btn ghost" id="bd-tests" style="width:100%">Tests und Aufgaben</button>
+      <button class="btn" id="bd-reg" style="width:100%;background:#ff9f0a;color:#fff;border:none;font-weight:800">Reguläre Übung (0)</button>
+    </div>
+    <div class="card" id="bd-tests-menu" style="display:none;margin-top:12px">
+      <b style="font-size:.9rem">Tests und Aufgaben</b>
+      <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+        <button class="btn ghost small grow" data-go="timer">🎯 Zeitfresser</button>
+        <button class="btn ghost small grow" data-go="diktat">✍️ Diktat</button>
+        <button class="btn ghost small grow" data-go="duel">🏆 Duell</button>
       </div>
     </div>
   </div>
@@ -547,7 +589,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -624,20 +666,72 @@ function renderHome(){
     }
     row.appendChild(ico);row.appendChild(txt);row.appendChild(stat);
     row.addEventListener('click',function(){
-      db.aktiv=i;db.lesson=-1;save();
-      if(!ps.length){renderHome();show('ws');return;}
-      if(due>0){startLearn(true);return;}
-      alert('In „'+b.name+'“ ist nichts fällig — weiter geht\'s, wenn die Wörter wieder dran sind. 👍');
-      renderHome();
+      openBook(i);
     });
     list.appendChild(row);
   });
 }
+function neuCount(b){
+  return bookPool(b).filter(function(p){return !p.level&&!isLTM(p);}).length;
+}
+function zuletztText(b){
+  if(!b.zl)return 'Noch nie gelernt';
+  var t=Date.now()-b.zl;
+  if(t<DAY)return 'Zuletzt gelernt: Heute';
+  if(t<2*DAY)return 'Zuletzt gelernt: Gestern';
+  return 'Zuletzt gelernt: vor '+Math.floor(t/DAY)+' Tagen';
+}
+function openBook(i){
+  db.aktiv=i;db.lesson=-1;save();
+  renderBook();
+  show('book');
+}
+function renderBook(){
+  var b=set(); if(!b)return;
+  var ps=bookPool(b);
+  var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
+  var neu=neuCount(b);
+  $('bd-flag').textContent=langOf(b.lang).flag;
+  $('bd-title').textContent=b.name;
+  $('bd-sub').textContent=zuletztText(b);
+  $('bd-due').textContent=due;
+  $('bd-neu').textContent='Neue Vokabeln ('+neu+')';
+  $('bd-reg').textContent='Reguläre Übung ('+due+')';
+  $('bd-tests-menu').style.display='none';
+}
+$('bd-heute').addEventListener('click',function(){
+  var ps=bookPool(set());
+  if(!ps.length){show('ws');return;}
+  if(!ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length){
+    alert('🎉 Super! Heute ist alles gelernt.');return;
+  }
+  startLearn(true);
+});
+$('bd-report').addEventListener('click',function(){renderReport();show('report');});
+$('bd-neu').addEventListener('click',function(){
+  var ps=poolPairs();
+  var idx=[];
+  ps.forEach(function(p,i){ if(!p.level&&!isLTM(p))idx.push(i); });
+  if(!idx.length){alert('Keine neuen Wörter im aktiven Pool. Füge welche hinzu: „📚 Mein Wortschatz“.');return;}
+  startLearn(false,idx);
+});
+$('bd-tests').addEventListener('click',function(){
+  var m=$('bd-tests-menu');
+  m.style.display=(m.style.display==='none')?'block':'none';
+});
+$('bd-reg').addEventListener('click',function(){
+  var ps=bookPool(set());
+  if(!ps.length){show('ws');return;}
+  if(!ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length){
+    alert('🎉 Super! Heute ist alles gelernt.');return;
+  }
+  startLearn(true);
+});
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
 updateModeBtn();
-Array.prototype.forEach.call(document.querySelectorAll('.mode'),function(b){
+Array.prototype.forEach.call(document.querySelectorAll('.mode,[data-go]'),function(b){
   b.addEventListener('click',function(){
     var g=b.getAttribute('data-go');
     if(g==='learn')startLearn();
@@ -681,7 +775,9 @@ var FLIP = (function(){ try{ return localStorage.getItem('vhFlipMode')==='1'; }c
 function saveFlip(){ try{ localStorage.setItem('vhFlipMode',FLIP?'1':'0'); }catch(e){} }
 function updateModeBtn(){ $('l-mode').textContent = FLIP?'🔄 Karte':'✍️ Tippen'; }
 function stopLearn(){L=null;}
+function markLearned(){ var b=set(); if(b){b.zl=Date.now();save();} }
 function startLearn(onlyDue,presetIdx){
+  markLearned();
   var ps=poolPairs();
   if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
   var idx=presetIdx||ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i]);});
@@ -875,6 +971,7 @@ function stopTimer(){
   if(T){T.dead=true;if(T.tick)clearTimeout(T.tick);T=null;}
 }
 function startTimer(){
+  markLearned();
   var ps=poolPairs();
   var idx=[];
   ps.forEach(function(p,i){if(p.level>=1&&!isLTM(p))idx.push(i);});
@@ -1021,6 +1118,7 @@ function peekWord(text){
   },1000);
 }
 function startDiktat(){
+  markLearned();
   var ps=poolPairs();
   if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
   if(speechOk===null){
@@ -1203,6 +1301,7 @@ function renderReport(){
 /* ---------- DUELL ---------- */
 var DU=null;
 function startDuel(){
+  markLearned();
   var ps=poolPairs();
   if(ps.length<2){alert('Für das Duell brauchst du mindestens 2 Wörter.');return;}
   var q=shuffle(ps.map(function(_,i){return i;}));
