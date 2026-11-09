@@ -259,8 +259,8 @@ footer a:hover{color:var(--accent)}
       <b>Neuen Test anlegen</b>
       <input id="te-name" type="text" placeholder="Name des Tests (z.B. Lektion 5 Schulaufgabe)" style="width:100%;margin-top:8px;font-size:1rem;padding:10px;border:1px solid var(--line,#e4e4e9);border-radius:10px">
       <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">
-        <select id="te-lesson" class="grow"></select>
-        <button class="btn ghost small" id="te-allles">Alle Lektionen</button>
+        <button class="btn ghost small grow" id="te-allon">Alle auswählen</button>
+        <button class="btn ghost small grow" id="te-alloff">Keine auswählen</button>
       </div>
       <p class="small" id="te-info" style="margin:8px 0 0"></p>
       <div id="te-list" style="margin-top:6px;max-height:52vh;overflow:auto"></div>
@@ -1279,51 +1279,84 @@ function renderTests(){
     });
   });
 }
-function allBookPairs(){ var all=[];set().lessons.forEach(function(l){l.pairs.forEach(function(p){all.push({p:p,l:l});});}); return all; }
+function allBookPairs(){ var all=[];set().lessons.forEach(function(l,i){l.pairs.forEach(function(p){all.push({p:p,l:l,li:i});});}); return all; }
 function openTestEdit(t){
-  var lessons=set().lessons;
-  TE={ test:t||null, name:t?t.name:'', lesson:0, chosen:{} };
+  TE={ test:t||null, name:t?t.name:'', chosen:{} };
   if(t)t.ids.forEach(function(id){TE.chosen[id]=true;});
   $('te-name').value=TE.name;
-  var sel=$('te-lesson');
-  sel.innerHTML='';
-  lessons.forEach(function(l,i){
-    var o=document.createElement('option');o.value=i;o.textContent=l.name+' ('+l.pairs.length+')';
-    sel.appendChild(o);
-  });
+  stampIds();
+  if(!Object.keys(TE.chosen).length&&t)t.ids.forEach(function(id){TE.chosen[id]=true;});
   renderTeList();
   show('testedit');
 }
+function teTeCounts(){
+  var sel=0,all=0;
+  allBookPairs().forEach(function(x){ all++; if(TE.chosen[x.p.id])sel++; });
+  return [sel,all];
+}
+function teInfo(){
+  var c=teTeCounts();
+  $('te-info').textContent=c[0]+' von '+c[1]+' Wörtern ausgewählt';
+  $('te-save').textContent='Test speichern ('+c[0]+' Wörter)';
+}
 function renderTeList(){
-  var l=set().lessons[TE.lesson];
-  var cnt=Object.keys(TE.chosen).length;
-  $('te-info').textContent=cnt+' Wörter ausgewählt';
-  $('te-save').textContent='Test speichern ('+cnt+' Wörter)';
   var h='';
-  l.pairs.forEach(function(p,pi){
-    var on=TE.chosen[p.id]?' on':'';
-    h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line,#eee)">'
-      +'<input type="checkbox" data-te="'+pi+'" '+(TE.chosen[p.id]?'checked':'')+'>'
-      +'<span style="flex:1;min-width:0"><b>'+esc(p.w)+'</b> <span style="color:#5d7494">'+esc(dispM(p))+'</span></span>'
-      +'</label>';
-  });
-  $('te-list').innerHTML=h||'<p class="small">Diese Lektion ist leer.</p>';
-  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-te]'),function(cb){
-    cb.addEventListener('change',function(){
-      var p=l.pairs[parseInt(cb.dataset.te,10)];
-      if(cb.checked)TE.chosen[p.id]=true; else delete TE.chosen[p.id];
-      var lab=cb.closest('label'); if(lab)lab.classList.toggle('on',cb.checked);
-      var c=Object.keys(TE.chosen).length;
-      $('te-info').textContent=c+' Wörter ausgewählt';
-      $('te-save').textContent='Test speichern ('+c+' Wörter)';
+  set().lessons.forEach(function(l,li){
+    if(!l.pairs.length)return;
+    var an=l.pairs.filter(function(p){return TE.chosen[p.id];}).length;
+    h+='<div class="tekap" style="margin-top:10px">'
+      +'<label style="display:flex;align-items:center;gap:8px;padding:7px 4px;background:#f2f5fa;border-radius:8px;cursor:pointer">'
+      +'<input type="checkbox" data-tekap="'+li+'" '+(an===l.pairs.length?'checked':'')+'>'
+      +'<b style="flex:1">'+esc(l.name)+'</b>'
+      +'<span class="small" style="color:#5d7494">'+an+'/'+l.pairs.length+'</span>'
+      +'</label></div>';
+    l.pairs.forEach(function(p){
+      h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" data-tefor="'+p.id+'" style="display:flex;align-items:center;gap:8px;padding:8px 4px 8px 26px;border-bottom:1px solid var(--line,#eee);cursor:pointer">'
+        +'<input type="checkbox" data-te="'+p.id+'" '+(TE.chosen[p.id]?'checked':'')+'>'
+        +'<span style="flex:1;min-width:0;overflow-wrap:anywhere"><b>'+esc(p.w)+'</b> <span style="color:#5d7494">'+esc(dispM(p))+'</span></span>'
+        +'</label>';
     });
   });
-}
-$('te-lesson').addEventListener('change',function(){ TE.lesson=parseInt(this.value,10)||0; renderTeList(); });
-$('te-allles').addEventListener('click',function(){
-  allBookPairs().forEach(function(x){
-    if(x.p.akt!==false)TE.chosen[x.p.id]=true;
+  $('te-list').innerHTML=h||'<p class="small">Dieses Buch ist leer.</p>';
+  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-te]'),function(cb){
+    cb.addEventListener('change',function(){
+      if(cb.checked)TE.chosen[cb.dataset.te]=true; else delete TE.chosen[cb.dataset.te];
+      var lab=cb.closest('label'); if(lab)lab.classList.toggle('on',cb.checked);
+      updateAllKaps();
+      teInfo();
+    });
   });
+  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-tekap]'),function(cb){
+    cb.addEventListener('change',function(){
+      var li=parseInt(cb.dataset.tekap,10);
+      set().lessons[li].pairs.forEach(function(p){
+        if(cb.checked)TE.chosen[p.id]=true; else delete TE.chosen[p.id];
+        var w=$('te-list').querySelector('[data-te="'+p.id+'"]');
+        if(w){ w.checked=cb.checked; var lab=w.closest('label'); if(lab)lab.classList.toggle('on',cb.checked); }
+      });
+      updateAllKaps();
+      teInfo();
+    });
+  });
+  teInfo();
+}
+function updateAllKaps(){
+  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-tekap]'),function(ckb){
+    var l=set().lessons[parseInt(ckb.dataset.tekap,10)];
+    if(!l)return;
+    var an=l.pairs.filter(function(p){return TE.chosen[p.id];}).length;
+    ckb.checked=(an===l.pairs.length);
+    ckb.indeterminate=(an>0&&an<l.pairs.length);
+    var cnt=ckb.closest('.tekap').querySelector('.small');
+    if(cnt)cnt.textContent=an+'/'+l.pairs.length;
+  });
+}
+$('te-allon').addEventListener('click',function(){
+  allBookPairs().forEach(function(x){TE.chosen[x.p.id]=true;});
+  renderTeList();
+});
+$('te-alloff').addEventListener('click',function(){
+  TE.chosen={};
   renderTeList();
 });
 $('te-back').addEventListener('click',function(){ renderTests(); show('tests'); });
