@@ -288,26 +288,15 @@ footer a:hover{color:var(--accent)}
       <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📚 Mein Wortschatz</h2>
       <span style="width:64px"></span>
     </div>
-    <div class="bookbar">📖 <select class="bookpick" id="ws-pick"></select></div>
-    <div class="card">
-      <p class="small" style="margin-bottom:8px">Nur was hier ausgewählt ist, wird abgefragt. Neue Schul-Lektion hinzufügen oder einzelne Wörter ankreuzen.</p>
-      <div class="row">
-        <select id="ws-lesson" class="grow"></select>
+    <input id="ws-search" type="search" placeholder="🔍 Vokabeln suchen …" style="width:100%;font-size:1rem;padding:11px 14px;border:1px solid var(--line,#e4e4e9);border-radius:12px;background:#fff">
+    <div class="card" style="margin-top:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="ws-flag" style="font-size:1.6rem">🇬🇧</span>
+        <b id="ws-bookname" style="flex:1;min-width:0;overflow-wrap:anywhere"></b>
       </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ws-addlesson">Lektion hinzufügen</button>
-        <button class="btn red small grow" id="ws-remlesson">Lektion entfernen</button>
-      </div>
+      <p class="small" id="ws-info" style="margin:6px 0 0">Nur was hier ausgewählt ist, wird abgefragt.</p>
     </div>
-    <div class="card">
-      <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
-        <input id="ws-search" type="search" placeholder="🔍 Wort suchen …" class="grow" style="flex:2">
-        <button class="btn ghost small" id="ws-all">Alle an</button>
-        <button class="btn ghost small" id="ws-none">Alle aus</button>
-      </div>
-      <p class="small" id="ws-info" style="margin-bottom:8px"></p>
-      <div id="ws-list"></div>
-    </div>
+    <div id="ws-list" style="margin-top:10px"></div>
   </div>
 
   <!-- ============ LERNEN ============ -->
@@ -1567,64 +1556,92 @@ function duelEnd(){
 var WS = {lesson:0, search:''};
 function renderWs(){
   var b=book();
-  var sel=$('ws-lesson');
-  sel.innerHTML='';
-  b.lessons.forEach(function(l,i){
-    var o=document.createElement('option');
-    o.value=i;
-    var on=l.pairs.filter(function(p){return p.akt!==false;}).length;
-    o.textContent=l.name+' — '+on+'/'+l.pairs.length+' aktiv';
-    if(i===WS.lesson)o.selected=true;
-    sel.appendChild(o);
+  if(!WS.kaps)WS.kaps={};
+  var q=norm(WS.search||'');
+  $('ws-flag').textContent=langOf(b.lang).flag;
+  $('ws-bookname').textContent=b.name;
+  wsInfo();
+  var h='';
+  b.lessons.forEach(function(l,li){
+    if(!l.pairs.length)return;
+    var an=l.pairs.filter(function(p){return p.akt!==false;}).length;
+    var visible=q?l.pairs.filter(function(p){return norm(p.w).indexOf(q)>=0||p.m.some(function(m){return norm(m).indexOf(q)>=0;});}):l.pairs;
+    if(q&&!visible.length)return;
+    if(WS.kaps[li]===undefined)WS.kaps[li]=!!q;
+    h+='<div class="tekard" style="background:#fff;border:1px solid var(--line,#e4e4e9);border-radius:14px;margin:8px 0;overflow:hidden">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:12px 12px">'
+      +'<input type="checkbox" data-wskap="'+li+'" '+(an===l.pairs.length?'checked':'')+' style="width:20px;height:20px;flex:none;accent-color:#1a8f4a">'
+      +'<div data-wskapopen="'+li+'" style="flex:1;min-width:0;cursor:pointer;font-weight:700;overflow-wrap:anywhere">'+esc(l.name)+'</div>'
+      +'<span class="small" style="color:#5d7494;flex:none">'+an+'/'+l.pairs.length+'</span>'
+      +'<span class="small" data-wsarrow="'+li+'" style="flex:none;color:#5d7494">'+(WS.kaps[li]?'▲':'▼')+'</span>'
+      +'</div>'
+      +'<div data-wswords="'+li+'" style="border-top:1px solid var(--line,#eee);'+(WS.kaps[li]?'':'display:none')+'">';
+    visible.forEach(function(p){
+      var pi=l.pairs.indexOf(p);
+      h+='<label class="wsrow'+(p.akt!==false?' on':'')+'" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line,#f0f0f4);cursor:pointer">'
+        +'<input type="checkbox" data-ws="'+li+':'+pi+'" '+(p.akt!==false?'checked':'')+' style="width:20px;height:20px;flex:none;accent-color:#1a8f4a">'
+        +'<span style="flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4">'+esc(p.w)+' / <b>'+esc(dispM(p))+'</b></span>'
+        +(p.akt!==false?'<span class="small" style="flex:none">'+levelBadge(p.level)+'</span>':'')
+        +'</label>';
+    });
+    h+='</div></div>';
   });
-  if(WS.lesson>=b.lessons.length)WS.lesson=0;
-  var L=b.lessons[WS.lesson]||{pairs:[]};
-  var q=WS.search.toLowerCase();
-  var shown=L.pairs.filter(function(p){ return !q || p.w.toLowerCase().indexOf(q)>=0 || dispM(p).toLowerCase().indexOf(q)>=0; });
-  var pool=poolPairs().length;
-  $('ws-info').textContent='Pool gesamt: '+pool+' von '+poolCountTotal()+' Wörtern'+(q?' · '+shown.length+' Treffer':'');
-  var list=$('ws-list');
-  list.innerHTML='';
-  shown.forEach(function(p){
-    var realIdx=L.pairs.indexOf(p);
-    var row=document.createElement('label');
-    row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #eee';
-    var cb=document.createElement('input');
-    cb.type='checkbox';cb.checked=p.akt!==false;
-    cb.style.cssText='width:22px;height:22px;flex:0 0 auto;accent-color:#1a8f4a';
-    cb.addEventListener('change',function(){ p.akt=this.checked; save(); renderWs(); });
-    var txt=document.createElement('span');
-    txt.style.cssText='flex:1;min-width:0;font-size:.95rem';
-    txt.innerHTML='<b>'+esc(p.w)+'</b> <span class="small">'+esc(dispM(p))+'</span>';
-    row.appendChild(cb);row.appendChild(txt);
-    if(p.akt!==false){
-      var st=document.createElement('span');
-      st.className='small';st.textContent=levelBadge(p.level);
-      row.appendChild(st);
-    }
-    list.appendChild(row);
+  $('ws-list').innerHTML=h||'<p class="small center" style="padding:16px">Keine Wörter gefunden.</p>';
+  Array.prototype.forEach.call($('ws-list').querySelectorAll('[data-wskapopen]'),function(el){
+    el.addEventListener('click',function(){
+      var li=parseInt(el.dataset.wskapopen,10);
+      WS.kaps[li]=!WS.kaps[li];
+      var w=$('ws-list').querySelector('[data-wswords="'+li+'"]');
+      var a=$('ws-list').querySelector('[data-wsarrow="'+li+'"]');
+      if(w)w.style.display=WS.kaps[li]?'':'none';
+      if(a)a.textContent=WS.kaps[li]?'▲':'▼';
+    });
+  });
+  Array.prototype.forEach.call($('ws-list').querySelectorAll('[data-ws]'),function(cb){
+    cb.addEventListener('change',function(){
+      var ab=cb.dataset.ws.split(':');
+      var p=b.lessons[parseInt(ab[0],10)].pairs[parseInt(ab[1],10)];
+      p.akt=cb.checked; save();
+      var lab=cb.closest('label'); if(lab)lab.classList.toggle('on',cb.checked);
+      wsBadge(lab,p);
+      wsKapsRefresh(); wsInfo();
+    });
+  });
+  Array.prototype.forEach.call($('ws-list').querySelectorAll('[data-wskap]'),function(cb){
+    cb.addEventListener('change',function(){
+      var li=parseInt(cb.dataset.wskap,10);
+      b.lessons[li].pairs.forEach(function(p,pi){
+        p.akt=cb.checked;
+        var w=$('ws-list').querySelector('[data-ws="'+li+':'+pi+'"]');
+        if(w){ w.checked=cb.checked; var lab=w.closest('label'); if(lab){lab.classList.toggle('on',cb.checked); wsBadge(lab,p);} }
+      });
+      save(); wsKapsRefresh(); wsInfo();
+    });
   });
 }
-$('ws-lesson').addEventListener('change',function(){WS.lesson=parseInt(this.value,10)||0;renderWs();});
-$('ws-search').addEventListener('input',function(){WS.search=this.value.trim();renderWs();});
-$('ws-all').addEventListener('click',function(){
-  var L=book().lessons[WS.lesson]||{pairs:[]};
-  L.pairs.forEach(function(p){p.akt=true;});save();renderWs();
-});
-$('ws-none').addEventListener('click',function(){
-  var L=book().lessons[WS.lesson]||{pairs:[]};
-  L.pairs.forEach(function(p){p.akt=false;});save();renderWs();
-});
-$('ws-addlesson').addEventListener('click',function(){
-  var L=book().lessons[WS.lesson]||{pairs:[]};
-  L.pairs.forEach(function(p){p.akt=true;});
-  WS.lesson=Math.min(book().lessons.length-1,WS.lesson+1);
-  save();renderWs();
-});
-$('ws-remlesson').addEventListener('click',function(){
-  var L=book().lessons[WS.lesson]||{pairs:[]};
-  L.pairs.forEach(function(p){p.akt=false;});save();renderWs();
-});
+function wsBadge(lab,p){
+  if(!lab)return;
+  var badge=lab.querySelector('span.small');
+  if(p.akt!==false&&!badge){ var st=document.createElement('span'); st.className='small'; st.style.flex='none'; st.textContent=levelBadge(p.level); lab.appendChild(st); }
+  if(p.akt===false&&badge)badge.remove();
+}
+function wsInfo(){
+  $('ws-info').textContent='Pool: '+poolPairs().length+' von '+poolCountTotal()+' Wörtern · nur Ausgewähltes wird abgefragt';
+}
+function wsKapsRefresh(){
+  var b=book();
+  Array.prototype.forEach.call($('ws-list').querySelectorAll('[data-wskap]'),function(ckb){
+    var l=b.lessons[parseInt(ckb.dataset.wskap,10)];
+    if(!l)return;
+    var an=l.pairs.filter(function(p){return p.akt!==false;}).length;
+    ckb.checked=(an===l.pairs.length);
+    ckb.indeterminate=(an>0&&an<l.pairs.length);
+    var kard=ckb.closest('.tekard');
+    var cnt=kard?kard.querySelector('.small'):null;
+    if(cnt)cnt.textContent=an+'/'+l.pairs.length;
+  });
+}
+$('ws-search').addEventListener('input',function(){WS.search=this.value;renderWs();});
 
 /* ---------- EDITOR ---------- */
 var delSetArmed=false,delSetTimer=null;
