@@ -254,18 +254,19 @@ footer a:hover{color:var(--accent)}
   <div class="view" id="v-testedit">
     <div class="row" style="margin-bottom:10px">
       <button class="btn ghost small" id="te-back">← Zurück</button>
+      <h2 style="margin:0;flex:1;text-align:center;font-size:1.05rem">📝 Wörter auswählen</h2>
+      <span style="width:76px"></span>
     </div>
-    <div class="card">
-      <b>Neuen Test anlegen</b>
-      <input id="te-name" type="text" placeholder="Name des Tests (z.B. Lektion 5 Schulaufgabe)" style="width:100%;margin-top:8px;font-size:1rem;padding:10px;border:1px solid var(--line,#e4e4e9);border-radius:10px">
-      <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">
-        <button class="btn ghost small grow" id="te-allon">Alle auswählen</button>
-        <button class="btn ghost small grow" id="te-alloff">Keine auswählen</button>
+    <input id="te-search" type="search" placeholder="🔍 Vokabeln suchen …" style="width:100%;font-size:1rem;padding:11px 14px;border:1px solid var(--line,#e4e4e9);border-radius:12px;background:#fff">
+    <div class="card" style="margin-top:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="te-flag" style="font-size:1.6rem">🇬🇧</span>
+        <b id="te-bookname" style="flex:1;min-width:0;overflow-wrap:anywhere"></b>
       </div>
-      <p class="small" id="te-info" style="margin:8px 0 0"></p>
-      <div id="te-list" style="margin-top:6px;max-height:52vh;overflow:auto"></div>
-      <button class="btn green" id="te-save" style="width:100%;margin-top:10px">Test speichern (0 Wörter)</button>
+      <input id="te-name" type="text" placeholder="Name des Tests (z.B. Lektion 5 Schulaufgabe)" style="width:100%;margin-top:8px;font-size:.95rem;padding:9px 12px;border:1px solid var(--line,#e4e4e9);border-radius:10px">
     </div>
+    <div id="te-list" style="margin-top:10px"></div>
+    <button class="btn" id="te-save" style="width:100%;margin-top:14px;background:#ff9f0a;color:#fff;border:none;font-weight:800;padding:13px">Test speichern (0)</button>
   </div>
 
   <!-- ============ REPORT ============ -->
@@ -1281,7 +1282,7 @@ function renderTests(){
 }
 function allBookPairs(){ var all=[];set().lessons.forEach(function(l,i){l.pairs.forEach(function(p){all.push({p:p,l:l,li:i});});}); return all; }
 function openTestEdit(t){
-  TE={ test:t||null, name:t?t.name:'', chosen:{} };
+  TE={ test:t||null, name:t?t.name:'', chosen:{}, kaps:{} };
   if(t)t.ids.forEach(function(id){TE.chosen[id]=true;});
   $('te-name').value=TE.name;
   stampIds();
@@ -1296,28 +1297,48 @@ function teTeCounts(){
 }
 function teInfo(){
   var c=teTeCounts();
-  $('te-info').textContent=c[0]+' von '+c[1]+' Wörtern ausgewählt';
-  $('te-save').textContent='Test speichern ('+c[0]+' Wörter)';
+  $('te-save').textContent='Test speichern ('+c[0]+')';
 }
 function renderTeList(){
+  var q=norm($('te-search').value||'');
+  $('te-flag').textContent=langOf(set().lang).flag;
+  $('te-bookname').textContent=set().name;
   var h='';
   set().lessons.forEach(function(l,li){
     if(!l.pairs.length)return;
     var an=l.pairs.filter(function(p){return TE.chosen[p.id];}).length;
-    h+='<div class="tekap" style="margin-top:10px">'
-      +'<label style="display:flex;align-items:center;gap:8px;padding:7px 4px;background:#f2f5fa;border-radius:8px;cursor:pointer">'
-      +'<input type="checkbox" data-tekap="'+li+'" '+(an===l.pairs.length?'checked':'')+'>'
-      +'<b style="flex:1">'+esc(l.name)+'</b>'
-      +'<span class="small" style="color:#5d7494">'+an+'/'+l.pairs.length+'</span>'
-      +'</label></div>';
-    l.pairs.forEach(function(p){
-      h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" data-tefor="'+p.id+'" style="display:flex;align-items:center;gap:8px;padding:8px 4px 8px 26px;border-bottom:1px solid var(--line,#eee);cursor:pointer">'
-        +'<input type="checkbox" data-te="'+p.id+'" '+(TE.chosen[p.id]?'checked':'')+'>'
+    var visible=q?l.pairs.filter(function(p){return norm(p.w).indexOf(q)>=0||p.m.some(function(m){return norm(m).indexOf(q)>=0;});}):l.pairs;
+    if(q&&!visible.length)return;
+    if(!TE.kaps)TE.kaps={};
+    if(TE.kaps[li]===undefined)TE.kaps[li]=!!q;
+    h+='<div class="tekard" style="background:#fff;border:1px solid var(--line,#e4e4e9);border-radius:14px;margin:8px 0;overflow:hidden">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:12px 12px">'
+      +'<input type="checkbox" data-tekap="'+li+'" '+(an===l.pairs.length?'checked':'')+' style="width:20px;height:20px;flex:none">'
+      +'<div data-tekapopen="'+li+'" style="flex:1;min-width:0;cursor:pointer;font-weight:700;overflow-wrap:anywhere">'+esc(l.name)
+      +'</div>'
+      +'<span class="small" style="color:#5d7494;flex:none">'+an+'/'+l.pairs.length+'</span>'
+      +'<span class="small" data-tearrow="'+li+'" style="flex:none;color:#5d7494">'+(TE.kaps[li]?'▲':'▼')+'</span>'
+      +'</div>'
+      +'<div class="tewords" data-tewords="'+li+'" style="border-top:1px solid var(--line,#eee);'+(TE.kaps[li]?'':'display:none')+'">';
+    visible.forEach(function(p){
+      h+='<label class="wsrow'+(TE.chosen[p.id]?' on':'')+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px 10px 18px;border-bottom:1px solid var(--line,#f0f0f4);cursor:pointer">'
+        +'<input type="checkbox" data-te="'+p.id+'" '+(TE.chosen[p.id]?'checked':'')+' style="width:18px;height:18px;flex:none">'
         +'<span style="flex:1;min-width:0;overflow-wrap:anywhere"><b>'+esc(p.w)+'</b> <span style="color:#5d7494">'+esc(dispM(p))+'</span></span>'
         +'</label>';
     });
+    h+='</div></div>';
   });
-  $('te-list').innerHTML=h||'<p class="small">Dieses Buch ist leer.</p>';
+  $('te-list').innerHTML=h||'<p class="small center" style="padding:16px">Keine Wörter gefunden.</p>';
+  Array.prototype.forEach.call($('te-list').querySelectorAll('[data-tekapopen]'),function(el){
+    el.addEventListener('click',function(){
+      var li=parseInt(el.dataset.tekapopen,10);
+      TE.kaps[li]=!TE.kaps[li];
+      var w=$('te-list').querySelector('[data-tewords="'+li+'"]');
+      var a=$('te-list').querySelector('[data-tearrow="'+li+'"]');
+      if(w)w.style.display=TE.kaps[li]?'':'none';
+      if(a)a.textContent=TE.kaps[li]?'▲':'▼';
+    });
+  });
   Array.prototype.forEach.call($('te-list').querySelectorAll('[data-te]'),function(cb){
     cb.addEventListener('change',function(){
       if(cb.checked)TE.chosen[cb.dataset.te]=true; else delete TE.chosen[cb.dataset.te];
@@ -1347,18 +1368,12 @@ function updateAllKaps(){
     var an=l.pairs.filter(function(p){return TE.chosen[p.id];}).length;
     ckb.checked=(an===l.pairs.length);
     ckb.indeterminate=(an>0&&an<l.pairs.length);
-    var cnt=ckb.closest('.tekap').querySelector('.small');
+    var kard=ckb.closest('.tekard');
+    var cnt=kard?kard.querySelector('.small'):null;
     if(cnt)cnt.textContent=an+'/'+l.pairs.length;
   });
 }
-$('te-allon').addEventListener('click',function(){
-  allBookPairs().forEach(function(x){TE.chosen[x.p.id]=true;});
-  renderTeList();
-});
-$('te-alloff').addEventListener('click',function(){
-  TE.chosen={};
-  renderTeList();
-});
+$('te-search').addEventListener('input',function(){ renderTeList(); });
 $('te-back').addEventListener('click',function(){ renderTests(); show('tests'); });
 $('te-save').addEventListener('click',function(){
   var ids=Object.keys(TE.chosen);
