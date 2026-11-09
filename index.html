@@ -727,7 +727,6 @@ function renderBook(){
   var nichtAktiv=b.lessons.reduce(function(n,l){return n+l.pairs.filter(function(p){return p.akt===false;}).length;},0);
   $('bd-neu').textContent='Neue Vokabeln ('+nichtAktiv+')';
   $('bd-reg').textContent='Reguläre Übung ('+due+')';
-  $('bd-tests-menu').style.display='none';
 }
 $('bd-heute').addEventListener('click',function(){
   var ps=bookPool(set());
@@ -739,10 +738,7 @@ $('bd-heute').addEventListener('click',function(){
 });
 $('bd-report').addEventListener('click',function(){renderReport();show('report');});
 $('bd-neu').addEventListener('click',function(){ renderWs(); show('ws'); });
-$('bd-tests').addEventListener('click',function(){
-  var m=$('bd-tests-menu');
-  m.style.display=(m.style.display==='none')?'block':'none';
-});
+
 $('bd-reg').addEventListener('click',function(){
   var ps=bookPool(set());
   if(!ps.length){show('ws');return;}
