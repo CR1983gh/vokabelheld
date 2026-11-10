@@ -468,9 +468,9 @@ footer a:hover{color:var(--accent)}
         <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
       </div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-campusc1" style="min-width:150px">🏛️ Campus C 1</button>
-        <button class="btn green small grow" id="ed-campusc2" style="min-width:150px">🏛️ Campus C 2</button>
-        <button class="btn green small grow" id="ed-campusc3" style="min-width:150px">🏛️ Campus C 3</button>
+        <button class="btn green small grow" id="ed-campusc1" style="min-width:150px">🏛️ Campus C alt 1</button>
+        <button class="btn green small grow" id="ed-campusc2" style="min-width:150px">🏛️ Campus C alt 2</button>
+        <button class="btn green small grow" id="ed-campusc3" style="min-width:150px">🏛️ Campus C alt 3</button>
       </div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
         <button class="btn green small grow" id="ed-gl1" style="min-width:100px">🟢 GL 1</button>
@@ -1975,9 +1975,9 @@ function loadPreset(file,label,btn){
   });
 }
 $('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Campus A-Wortschatz laden',this);});
-$('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Campus C 1',this);});
-$('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Campus C 2',this);});
-$('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Campus C 3',this);});
+$('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Campus C alt 1',this);});
+$('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Campus C alt 2',this);});
+$('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Campus C alt 3',this);});
 [1,2,3,4,5,6].forEach(function(i){ $('ed-gl'+i).addEventListener('click',function(){loadPreset('greenline'+i+'.txt','🟢 GL '+i,this);}); });
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
@@ -2159,7 +2159,7 @@ function splitCampusC(){
   if(idx<0)return;
   var old=db.books[idx];
   function num(l){var m=String(l.name).match(/(\d+)/);return m?parseInt(m[1],10):null;}
-  var bands=[{name:'Campus C 1 (Lekt. 1–40)',lessons:[]},{name:'Campus C 2 (Lekt. 41–76)',lessons:[]},{name:'Campus C 3 (Lekt. 77–104)',lessons:[]}];
+  var bands=[{name:'Campus C alt 1 (Lekt. 1–40)',lessons:[]},{name:'Campus C alt 2 (Lekt. 41–76)',lessons:[]},{name:'Campus C alt 3 (Lekt. 77–104)',lessons:[]}];
   var rest=[];
   old.lessons.forEach(function(l){
     var nm=String(l.name||'');
@@ -2180,11 +2180,11 @@ function splitCampusC(){
 function fixCampusCBands(){
   /* Nachbesserung: T-Training/Anhang-Lektionen die (wegen frueheren Bugs) in Band 1/2 gelandet sind -> Band 3 */
   var i3=-1;
-  db.books.forEach(function(b,i){ if(/Campus\s*C\s*3/.test(b.name))i3=i; });
+  db.books.forEach(function(b,i){ if(/Campus\s*C\s*(alt\s*)?3/.test(b.name))i3=i; });
   if(i3<0)return;
   var moved=0;
   db.books.forEach(function(b,i){
-    if(i===i3||!/Campus\s*C\s*[12]/.test(b.name))return;
+    if(i===i3||!/Campus\s*C\s*(alt\s*)?[12]/.test(b.name))return;
     var keep=[];
     b.lessons.forEach(function(l){
       var nm=String(l.name||'');
@@ -2195,10 +2195,19 @@ function fixCampusCBands(){
   });
   if(moved)save();
 }
+function renameCampusCAlt(){
+  /* vorhandene Buecher 'Campus C 1/2/3 ...' -> 'Campus C alt 1/2/3 ...' */
+  var changed=false;
+  db.books.forEach(function(b){
+    if(/^Campus\s*C\s*(?!alt)([123])/.test(b.name)){ b.name=b.name.replace(/^(Campus\s*C\s*)([123])/,'$1alt $2'); changed=true; }
+  });
+  if(changed)save();
+}
 /* ---------- Start ---------- */
 load();
 splitCampusC();
 fixCampusCBands();
+renameCampusCAlt();
 show('home');
 tryRestoreBackup();
 document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
