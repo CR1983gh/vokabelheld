@@ -468,7 +468,9 @@ footer a:hover{color:var(--accent)}
         <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
       </div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-campusc" style="min-width:200px">🏛️ Campus C-Wortschatz I–III laden</button>
+        <button class="btn green small grow" id="ed-campusc1" style="min-width:150px">🏛️ Campus C 1</button>
+        <button class="btn green small grow" id="ed-campusc2" style="min-width:150px">🏛️ Campus C 2</button>
+        <button class="btn green small grow" id="ed-campusc3" style="min-width:150px">🏛️ Campus C 3</button>
       </div>
     </div>
   </div>
@@ -1949,8 +1951,8 @@ function doImport(mode){
   $('ed-import').value='';
   renderEd();renderHome();
 }
-function loadPreset(file,label){
-  var btn=$('ed-'+(file==='campusA.txt'?'campus':'campusc'));
+function loadPreset(file,label,btn){
+  btn=btn||$('ed-campus');
   btn.disabled=true;btn.textContent='Lade …';
   fetch(file+'?v=2').then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -1964,8 +1966,10 @@ function loadPreset(file,label){
     btn.disabled=false;btn.textContent=label;
   });
 }
-$('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Campus A-Wortschatz laden');});
-$('ed-campusc').addEventListener('click',function(){loadPreset('campusC.txt','🏛️ Campus C-Wortschatz I–III laden');});
+$('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Campus A-Wortschatz laden',this);});
+$('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Campus C 1',this);});
+$('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Campus C 2',this);});
+$('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Campus C 3',this);});
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
 function splitMeanings(str){
@@ -2137,8 +2141,34 @@ save=function(){
 };
 setInterval(function(){ if(GS.dirty&&gsTok()&&gsId()&&!document.hidden)gsPush(true); },90000);
 document.addEventListener('visibilitychange',function(){ if(document.hidden){ if(GS.dirty&&gsTok()&&gsId())gsPush(true); } else setTimeout(tryRestoreBackup,600); });
+/* ---------- Campus-C-Aufteilung in 3 Bände ---------- */
+function splitCampusC(){
+  var idx=-1;
+  db.books.forEach(function(b,i){
+    if(/Campus\s*C/i.test(b.name)&&/I\s*[–-]\s*III/i.test(b.name))idx=i;
+  });
+  if(idx<0)return;
+  var old=db.books[idx];
+  function num(l){var m=String(l.name).match(/(\d+)/);return m?parseInt(m[1],10):null;}
+  var bands=[{name:'Campus C 1 (Lekt. 1–40)',lessons:[]},{name:'Campus C 2 (Lekt. 41–76)',lessons:[]},{name:'Campus C 3 (Lekt. 77–104)',lessons:[]}];
+  var rest=[];
+  old.lessons.forEach(function(l){
+    var n=num(l);
+    if(n!==null&&n>=1&&n<=40)bands[0].lessons.push(l);
+    else if(n!==null&&n>=41&&n<=76)bands[1].lessons.push(l);
+    else if(n!==null&&n>=77&&n<=104)bands[2].lessons.push(l);
+    else rest.push(l);
+  });
+  bands[2].lessons=bands[2].lessons.concat(rest); /* T-Training + Anhang -> Band 3 */
+  bands=bands.filter(function(b){return b.lessons.length;});
+  bands.forEach(function(b){b.lang=old.lang;b.id=old.id+'-'+b.name;});
+  var args=[idx,1].concat(bands);
+  Array.prototype.splice.apply(db.books,args);
+  save();
+}
 /* ---------- Start ---------- */
 load();
+splitCampusC();
 show('home');
 tryRestoreBackup();
 document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
