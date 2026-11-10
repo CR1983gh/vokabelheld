@@ -595,8 +595,93 @@ function load(){
   }catch(e){db=null;}
   ensure();save();
 }
+function countWords(d){
+  if(!d||!Array.isArray(d.books))return 0;
+  var n=0;d.books.forEach(function(b){(b.lessons||[]).forEach(function(l){n+=(l.pairs||[]).length;});});
+  return n;
+}
+/* ---- Auto-Sicherung in IndexedDB (robust gegen Browser-Clear) ---- */
+var BK={last:0,ready:false};
+function bkDB(){ return new Promise(function(res){
+  try{
+    var r=indexedDB.open('vhBackup',1);
+    r.onupgradeneeded=function(){ try{r.result.createObjectStore('s');}catch(e){} };
+    r.onsuccess=function(){ res(r.result); };
+    r.onerror=function(){ res(null); };
+  }catch(e){ res(null); }
+});}
+function bkPut(){
+  try{
+    if(!BK.ready)return; /* Erst nach dem Restore-Check schreiben, sonst leeren Stand ueberschreiben! */
+    if(!db||!db.books||!db.books.length)return;
+    var now=Date.now();
+    if(now-BK.last<20000)return; /* max alle 20s */
+    BK.last=now;
+    db.meta={ts:Date.now()};
+    var snap=JSON.stringify(db);
+    bkDB().then(function(d){ if(!d)return;
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,'main'); }catch(e){}
+    });
+  }catch(e){}
+}
+function bkGetNow(){
+  try{
+    if(!BK.ready)return;
+    db.meta={ts:Date.now()};
+    var snap=JSON.stringify(db);
+    bkDB().then(function(d){ if(!d)return;
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,'main'); }catch(e){}
+    });
+  }catch(e){}
+}
+function bkGet(){ return bkDB().then(function(d){ if(!d)return null;
+  return new Promise(function(res){
+    try{
+      var q=d.transaction('s').objectStore('s').get('main');
+      q.onsuccess=function(){ res(q.result||null); };
+      q.onerror=function(){ res(null); };
+    }catch(e){ res(null); }
+  });
+});}
+var restoreBusy=false;
+function showRestoreBanner(b,backup,when){
+  if(restoreBusy)return; restoreBusy=true;
+  var el=document.getElementById('restorebar');
+  if(!el){
+    el=document.createElement('div'); el.id='restorebar';
+    el.style.cssText='position:fixed;left:10px;right:10px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:999;background:#fff;border:1.5px solid #FF9F0A;border-radius:16px;padding:14px 14px 12px;box-shadow:0 8px 30px rgba(0,0,0,.18);font-size:13.5px;line-height:1.45';
+    document.body.appendChild(el);
+  }
+  el.innerHTML='<b>⚠️ Speicher geleert?</b><br>Deine App-Daten sind weg, aber es gibt eine Auto-Sicherung vom '+when+' mit <b>'+backup+' Wörtern</b>.<div style="display:flex;gap:8px;margin-top:10px"><button id="rs-yes" style="flex:1;padding:10px;border:0;border-radius:11px;background:#FF9500;color:#fff;font-weight:700;font-size:14px">Zurückholen</button><button id="rs-no" style="flex:1;padding:10px;border:1px solid #d9d9de;border-radius:11px;background:#fff;color:#3a3a3c;font-size:14px">Nein</button></div>';
+  el.style.display='block';
+  document.getElementById('rs-yes').onclick=function(){
+    db=b; ensure(); BK.ready=true; save(); renderHome();
+    el.style.display='none';
+  };
+  document.getElementById('rs-no').onclick=function(){ el.style.display='none'; };
+}
+function tryRestoreBackup(){
+  bkGet().then(function(raw){
+    BK.ready=true;
+    if(!raw)return;
+    var b; try{ b=JSON.parse(raw); }catch(e){ return; }
+    if(!b||!b.books||!b.books.length)return;
+    var cur=countWords(db), backup=countWords(b);
+    if(backup<=cur+100)return; /* Backup bringt nichts Neues */
+    var d=new Date(b.meta&&b.meta.ts?b.meta.ts:Date.now());
+    var when=d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    showRestoreBanner(b,backup,when);
+  });
+}
+var saveWarned=false;
 function save(){
-  try{localStorage.setItem(LS,JSON.stringify(db));}catch(e){}
+  try{localStorage.setItem(LS,JSON.stringify(db));}
+  catch(e){
+    if(!saveWarned){ saveWarned=true;
+      setTimeout(function(){ alert('⚠️ Speichern im Browser fehlgeschlagen!\nDer Browser blockiert den Speicher dieser Seite.\n\nTipp (DuckDuckGo Browser):\n• Menü → „Website-Einstellungen“ → Datentracking/Trackerblocker für diese Seite lockern\n• Oder Seite im normalen Chrome öffnen\n\nDie Auto-Sicherung (IndexedDB) läuft weiter, sobald sie erlaubt ist.'); },100);
+    }
+  }
+  bkPut();
 }
 function stampIds(){
   /* neue Woerter sofort mit stabiler ID versehen (auch vor dem naechsten Laden) */
@@ -1919,6 +2004,9 @@ try{
 /* ---------- Start ---------- */
 load();
 show('home');
+tryRestoreBackup();
+document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
+window.addEventListener('pagehide',bkGetNow);
 })();
 </script>
 </body>
