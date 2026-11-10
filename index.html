@@ -38,6 +38,8 @@ body{
 #l-reveal{margin-top:auto}
 #v-learn .answerrow{margin-top:auto}
 h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
+#gear-btn{position:fixed;top:10px;right:max(12px,calc((100vw - 480px)/2 + 12px));z-index:30;width:38px;height:38px;border:0;background:transparent;color:#a1a1a6;font-size:21px;line-height:1;border-radius:50%;-webkit-tap-highlight-color:transparent}
+#gear-btn:active{background:rgba(0,0,0,.05)}
 .card{background:#fff;border-radius:var(--r);border:1px solid var(--hairline);padding:16px;margin-bottom:12px}
 .duebtn{
   width:100%;border:none;border-radius:var(--r);cursor:pointer;
@@ -199,15 +201,28 @@ footer a:hover{color:var(--accent)}
 
   <!-- ============ HOME ============ -->
   <div class="view active" id="v-home">
+    <button id="gear-btn" aria-label="Einstellungen" title="Einstellungen">⚙︎</button>
     <h1 class="logo">🦸 Vokabel-Held</h1>
     <div id="booklist"></div>
     <div class="card" style="margin-top:12px">
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn ghost small grow" id="home-newset">＋ Neues Buch</button>
-      </div>
-      <div class="row" style="margin-top:8px">
+      <div class="row">
         <button class="btn ghost grow" id="home-report">📊 Report</button>
-        <button class="btn ghost grow" id="home-editor">✍️ Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EINSTELLUNGEN ============ -->
+  <div class="view" id="v-settings">
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn ghost small" data-home>← Home</button>
+    </div>
+    <h1 class="logo" style="font-size:1.4rem;margin-bottom:14px">Einstellungen</h1>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn ghost grow" id="home-newset">＋ Neues Buch</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost grow" id="home-editor">✍️ Bücher bearbeiten</button>
       </div>
     </div>
     <div class="card" style="margin-top:12px">
@@ -705,7 +720,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -831,6 +846,7 @@ $('bd-reg').addEventListener('click',function(){
   }
   startLearn(true);
 });
+$('gear-btn').addEventListener('click',function(){show('settings');});
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 $('home-report').addEventListener('click',function(){renderReport();show('report');});
