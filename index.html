@@ -231,6 +231,15 @@ footer a:hover{color:var(--accent)}
     </div>
   </div>
 
+  <!-- ============ GRAMMATIK-TRAINING ============ -->
+  <div class="view" id="v-gram">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost small" data-home>← Home</button>
+    </div>
+    <h1 class="logo" style="font-size:1.35rem;margin-bottom:12px">📖 Grammatik-Training</h1>
+    <div id="gram-body"></div>
+  </div>
+
   <!-- ============ BUCH-DETAIL ============ -->
   <div class="view" id="v-book">
     <div class="row" style="margin-bottom:10px">
@@ -250,6 +259,7 @@ footer a:hover{color:var(--accent)}
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
       <button class="btn ghost" id="bd-neu" style="width:100%">Neue Vokabeln (0)</button>
       <button class="btn ghost" id="bd-tests" style="width:100%">Tests und Aufgaben</button>
+      <button class="btn ghost" id="bd-grammatik" style="width:100%;display:none">📖 Grammatik-Training</button>
       <button class="btn" id="bd-reg" style="width:100%;background:#ff9f0a;color:#fff;border:none;font-weight:800">Reguläre Übung (0)</button>
     </div>
   </div>
@@ -466,6 +476,9 @@ footer a:hover{color:var(--accent)}
       </div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
         <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
+      </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn green small grow" id="ed-ccneu1" style="min-width:160px">🏛️ Campus C neu 1</button>
       </div>
       <div class="row" style="margin-top:8px;flex-wrap:wrap">
         <button class="btn green small grow" id="ed-campusc1" style="min-width:150px">🏛️ Campus C alt 1</button>
@@ -725,7 +738,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings','gram'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -831,6 +844,8 @@ function renderBook(){
   var nichtAktiv=b.lessons.reduce(function(n,l){return n+l.pairs.filter(function(p){return p.akt===false;}).length;},0);
   $('bd-neu').textContent='Neue Vokabeln ('+nichtAktiv+')';
   $('bd-reg').textContent='Reguläre Übung ('+due+')';
+  var gb=$('bd-grammatik');
+  if(gb)gb.style.display=/Campus\s*C\s*neu/i.test(b.name)?'block':'none';
 }
 $('bd-heute').addEventListener('click',function(){
   var ps=bookPool(set());
@@ -1976,6 +1991,7 @@ function loadPreset(file,label,btn){
 }
 $('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Campus A-Wortschatz laden',this);});
 $('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Campus C alt 1',this);});
+$('ed-ccneu1').addEventListener('click',function(){loadPreset('campusCneu1.txt','🏛️ Campus C neu 1',this);});
 $('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Campus C alt 2',this);});
 $('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Campus C alt 3',this);});
 [1,2,3,4,5,6].forEach(function(i){ $('ed-gl'+i).addEventListener('click',function(){loadPreset('greenline'+i+'.txt','🟢 GL '+i,this);}); });
@@ -2150,6 +2166,89 @@ save=function(){
 };
 setInterval(function(){ if(GS.dirty&&gsTok()&&gsId()&&!document.hidden)gsPush(true); },90000);
 document.addEventListener('visibilitychange',function(){ if(document.hidden){ if(GS.dirty&&gsTok()&&gsId())gsPush(true); } else setTimeout(tryRestoreBackup,600); });
+/* ---------- Grammatik-Training (Campus C neu) ---------- */
+var GRAM=null;
+function loadGram(){
+  if(GRAM) return Promise.resolve(GRAM);
+  return fetch('grammatik_data.json').then(function(r){return r.json();}).then(function(j){GRAM=j;return j;});
+}
+function renderGramPicker(){
+  loadGram().then(function(g){
+    var h='<div class="card"><div style="font-size:13px;color:#6b6b70;margin-bottom:8px">Lektion wählen — Regeln aus dem Buch + Übungsquiz</div><div class="row" style="flex-wrap:wrap;gap:6px">';
+    for(var n=1;n<=37;n++){
+      var L=g[String(n)];
+      if(!L||(!L.rules.length&&!L.sents.length))continue;
+      h+='<button class="btn ghost small gram-lek" data-lek="'+n+'" style="min-width:64px">L'+n+'</button>';
+    }
+    h+='</div></div>';
+    $('gram-body').innerHTML=h;
+    Array.prototype.forEach.call(document.querySelectorAll('.gram-lek'),function(b){
+      b.addEventListener('click',function(){renderGramLek(parseInt(b.getAttribute('data-lek'),10));});
+    });
+  });
+}
+function renderGramLek(n){
+  var L=GRAM[String(n)]; if(!L)return;
+  var h='<div class="card"><div style="font-weight:800;margin-bottom:8px">Lektion '+n+' — Regeln</div>';
+  L.rules.forEach(function(r){
+    h+='<div style="margin-bottom:10px"><div style="font-weight:700;font-size:13.5px;color:#0a84ff">'+esc(r.t)+'</div>'+
+       '<div style="font-size:13px;line-height:1.5;margin-top:3px">'+esc(r.x)+'</div></div>';
+  });
+  if(L.sents.length){
+    h+='<div style="font-weight:700;font-size:13.5px;margin:8px 0 4px">Beispielsätze</div>';
+    L.sents.forEach(function(s){h+='<div style="font-size:13px;line-height:1.5;margin-bottom:6px">'+esc(s)+'</div>';});
+  }
+  h+='</div>';
+  if(L.quiz.length){
+    h+='<div class="row" style="margin-top:10px"><button class="btn grow" id="gram-quiz" style="background:#30d158;color:#fff;border:none;font-weight:800">▶ Quiz starten ('+L.quiz.length+' Formen)</button></div>';
+  }
+  $('gram-body').innerHTML=h;
+  var qb=$('gram-quiz');
+  if(qb)qb.addEventListener('click',function(){startGramQuiz(L.quiz,n);});
+}
+var GQ=null;
+function startGramQuiz(pool,lek){
+  var qs=shuffle(pool).slice(0,Math.min(10,pool.length));
+  GQ={q:qs,i:0,ok:0,lek:lek};
+  gramQuestion();
+}
+function gramQuestion(){
+  if(!GQ)return;
+  if(GQ.i>=GQ.q.length){
+    var pct=Math.round(100*GQ.ok/GQ.q.length);
+    $('gram-body').innerHTML='<div class="card" style="text-align:center"><div style="font-size:2rem">'+(pct>=80?'🏆':(pct>=50?'👍':'💪'))+'</div>'+
+      '<div style="font-weight:800;margin:6px 0">'+GQ.ok+' / '+GQ.q.length+' richtig ('+pct+'%)</div>'+
+      '<div class="row" style="justify-content:center;margin-top:10px"><button class="btn ghost" id="gq-again">Nochmal</button>'+
+      '<button class="btn ghost" id="gq-back">Zurück zur Lektion</button></div></div>';
+    $('gq-again').addEventListener('click',function(){startGramQuiz(GRAM[String(GQ.lek)].quiz,GQ.lek);});
+    $('gq-back').addEventListener('click',function(){renderGramLek(GQ.lek);});
+    return;
+  }
+  var cur=GQ.q[GQ.i];
+  var others=shuffle(GRAM[String(GQ.lek)].quiz.filter(function(x){return x.ger!==cur.ger;})).slice(0,3);
+  var opts=shuffle([cur].concat(others));
+  var h='<div class="card"><div style="font-size:12px;color:#6b6b70;margin-bottom:6px">Lektion '+GQ.lek+' · Frage '+(GQ.i+1)+'/'+GQ.q.length+'</div>'+
+    '<div style="font-size:1.5rem;font-weight:800;text-align:center;margin:10px 0">'+esc(cur.lat)+'</div>'+
+    '<div style="font-size:12.5px;color:#6b6b70;text-align:center;margin-bottom:10px">Was bedeutet das?</div>';
+  opts.forEach(function(o,idx){
+    h+='<button class="btn ghost grow gq-opt" data-idx="'+idx+'" style="margin-bottom:8px;white-space:normal;text-align:left">'+esc(o.ger)+'</button>';
+  });
+  h+='</div>';
+  $('gram-body').innerHTML=h;
+  var optsArr=Array.prototype.slice.call(document.querySelectorAll('.gq-opt'));
+  optsArr.forEach(function(b){
+    b.addEventListener('click',function(){
+      var o=opts[parseInt(b.getAttribute('data-idx'),10)];
+      optsArr.forEach(function(x){x.disabled=true;});
+      if(o.ger===cur.ger){GQ.ok++;b.style.background='#30d158';b.style.color='#fff';}
+      else{b.style.background='#ff453a';b.style.color='#fff';
+        optsArr.forEach(function(x){if(x.getAttribute('data-idx')===String(opts.indexOf(cur))){x.style.background='#30d158';x.style.color='#fff';}});}
+      setTimeout(function(){GQ.i++;gramQuestion();},900);
+    });
+  });
+}
+$('bd-grammatik').addEventListener('click',function(){ renderGramPicker(); show('gram'); });
+
 /* ---------- Campus-C-Aufteilung in 3 Bände ---------- */
 function splitCampusC(){
   var idx=-1;
