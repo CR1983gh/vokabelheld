@@ -2153,22 +2153,43 @@ function splitCampusC(){
   var bands=[{name:'Campus C 1 (Lekt. 1–40)',lessons:[]},{name:'Campus C 2 (Lekt. 41–76)',lessons:[]},{name:'Campus C 3 (Lekt. 77–104)',lessons:[]}];
   var rest=[];
   old.lessons.forEach(function(l){
+    var nm=String(l.name||'');
+    if(/^T-Training/i.test(nm)||/Anhang/i.test(nm)){ bands[2].lessons.push(l); return; } /* T-Training + Anhang -> Band 3 */
     var n=num(l);
     if(n!==null&&n>=1&&n<=40)bands[0].lessons.push(l);
     else if(n!==null&&n>=41&&n<=76)bands[1].lessons.push(l);
     else if(n!==null&&n>=77&&n<=104)bands[2].lessons.push(l);
     else rest.push(l);
   });
-  bands[2].lessons=bands[2].lessons.concat(rest); /* T-Training + Anhang -> Band 3 */
+  bands[2].lessons=bands[2].lessons.concat(rest);
   bands=bands.filter(function(b){return b.lessons.length;});
   bands.forEach(function(b){b.lang=old.lang;b.id=old.id+'-'+b.name;});
   var args=[idx,1].concat(bands);
   Array.prototype.splice.apply(db.books,args);
   save();
 }
+function fixCampusCBands(){
+  /* Nachbesserung: T-Training/Anhang-Lektionen die (wegen frueheren Bugs) in Band 1/2 gelandet sind -> Band 3 */
+  var i3=-1;
+  db.books.forEach(function(b,i){ if(/Campus\s*C\s*3/.test(b.name))i3=i; });
+  if(i3<0)return;
+  var moved=0;
+  db.books.forEach(function(b,i){
+    if(i===i3||!/Campus\s*C\s*[12]/.test(b.name))return;
+    var keep=[];
+    b.lessons.forEach(function(l){
+      var nm=String(l.name||'');
+      if(/^T-Training/i.test(nm)||/Anhang/i.test(nm)){ db.books[i3].lessons.push(l); moved++; }
+      else keep.push(l);
+    });
+    b.lessons=keep;
+  });
+  if(moved)save();
+}
 /* ---------- Start ---------- */
 load();
 splitCampusC();
+fixCampusCBands();
 show('home');
 tryRestoreBackup();
 document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
