@@ -2082,7 +2082,7 @@ function showCloudRestore(remote,rt){
   document.getElementById('cl-no').onclick=function(){ el.style.display='none'; GS.dirty=true; };
 }
 function gsSetup(){
-  var tok=prompt('GitHub-Token eingeben (Fine-grained mit Recht „Gists: Read and write"):\n\nAnlegen unter: github.com → Settings → Developer settings → Fine-grained tokens → „Gists: Read/Write", sonst nichts.');
+  var tok=prompt('GitHub-Token für den Cloud-Speicher:\n\nFine-grained Token anlegen:\ngithub.com/settings/tokens?type=beta\n• Resource owner: dein Account\n• Repository access: „Public repos" (nichts auswählen)\n• Account permissions → „Gists": Read and write\n• Keine weiteren Rechte\n\n(Alternativ: classic Token mit nur dem Scope „gist")');
   if(!tok||!tok.trim())return;
   tok=tok.trim();
   localStorage.setItem(GS.tkey,tok);
