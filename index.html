@@ -210,6 +210,15 @@ footer a:hover{color:var(--accent)}
         <button class="btn ghost grow" id="home-editor">✍️ Editor</button>
       </div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:13.5px;font-weight:600;margin-bottom:6px">☁️ Cloud-Sync (GitHub)</div>
+      <div id="sync-status" style="font-size:12.5px;color:#6b6b70;line-height:1.45">Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost grow" id="sync-btn">Einrichten</button>
+        <button class="btn ghost grow" id="sync-now" style="display:none">Jetzt syncen</button>
+        <button class="btn ghost grow" id="sync-off" style="display:none">Abmelden</button>
+      </div>
+    </div>
   </div>
 
   <!-- ============ BUCH-DETAIL ============ -->
@@ -2001,6 +2010,122 @@ try{
   }
 }catch(e){}
 
+/* ---------- Cloud-Sync via GitHub Gist ---------- */
+var GS={tkey:'vhGistToken', ikey:'vhGistId', desc:'vh-sync:vokabelheld', file:'vokabelheld.json', dirty:false, busy:false, last:0};
+function gsTok(){ try{return localStorage.getItem(GS.tkey)||'';}catch(e){return '';} }
+function gsId(){ try{return localStorage.getItem(GS.ikey)||'';}catch(e){return '';} }
+function gsStatus(msg){ var el=$('sync-status'); if(el)el.textContent=msg; }
+function gsButtons(){
+  var on=!!(gsTok()&&gsId());
+  $('sync-btn').style.display=on?'none':'';
+  $('sync-now').style.display=on?'':'none';
+  $('sync-off').style.display=on?'':'none';
+}
+function gsApi(path,method,body){
+  return fetch('https://api.github.com'+path,{
+    method:method||'GET',
+    headers:{'Authorization':'Bearer '+gsTok(),'Content-Type':'application/json','Accept':'application/vnd.github+json'},
+    body:body?JSON.stringify(body):undefined
+  }).then(function(r){
+    if(r.status===401){ gsStatus('⚠️ Token abgelaufen oder ungültig — bitte neu einrichten.'); throw new Error('auth'); }
+    return r.json().then(function(j){ if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status)); return j; });
+  });
+}
+function gsPayload(){ db.meta={ts:Date.now(),dev:navigator.userAgent.slice(0,40)}; return JSON.stringify(db); }
+function gsFindMine(){
+  return gsApi('/gists?per_page=100').then(function(list){
+    for(var i=0;i<list.length;i++){
+      var g=list[i];
+      if(g.description===GS.desc&&g.files&&g.files[GS.file])return g.id;
+    }
+    return '';
+  });
+}
+function gsPush(silent){
+  if(!gsTok()||!gsId()||GS.busy)return Promise.resolve();
+  GS.busy=true;
+  return gsApi('/gists/'+gsId(),'PATCH',{files:(function(){var f={};f[GS.file]={content:gsPayload()};return f;})()})
+    .then(function(g){ GS.dirty=false; GS.last=Date.now(); gsStatus('☁️ Synchron · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})); })
+    .catch(function(e){ if(!silent)gsStatus('⚠️ Sync fehlgeschlagen: '+e.message); })
+    .then(function(){ GS.busy=false; });
+}
+function gsPull(force){
+  if(!gsTok()||!gsId()||GS.busy)return Promise.resolve();
+  GS.busy=true;
+  return gsApi('/gists/'+gsId()).then(function(g){
+    var f=g.files&&g.files[GS.file]; if(!f){GS.busy=false;return;}
+    return f.content!=null?f.content:fetch(f.browser_download_url).then(function(r){return r.text();});
+  }).then(function(raw){
+    GS.busy=false;
+    if(!raw)return;
+    var remote; try{ remote=JSON.parse(raw); }catch(e){ return; }
+    var rt=(remote.meta&&remote.meta.ts)||0, lt=(db.meta&&db.meta.ts)||0;
+    if(rt>lt+5000&&(force||rt-lt>60000)){
+      showCloudRestore(remote,rt);
+    } else if(rt>GS.last){ GS.last=rt; }
+  }).catch(function(){ GS.busy=false; });
+}
+function showCloudRestore(remote,rt){
+  var el=document.getElementById('cloudbar');
+  if(!el){
+    el=document.createElement('div'); el.id='cloudbar';
+    el.style.cssText='position:fixed;left:10px;right:10px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:999;background:#fff;border:1.5px solid #0A84FF;border-radius:16px;padding:14px 14px 12px;box-shadow:0 8px 30px rgba(0,0,0,.18);font-size:13.5px;line-height:1.45';
+    document.body.appendChild(el);
+  }
+  var d=new Date(rt);
+  el.innerHTML='<b>☁️ Cloud-Version gefunden</b><br>Der GitHub-Stand vom '+d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' ist neuer als dieses Gerät ('+countWords(remote)+' Wörter dort).<div style="display:flex;gap:8px;margin-top:10px"><button id="cl-yes" style="flex:1;padding:10px;border:0;border-radius:11px;background:#0A84FF;color:#fff;font-weight:700;font-size:14px">Aus Cloud laden</button><button id="cl-no" style="flex:1;padding:10px;border:1px solid #d9d9de;border-radius:11px;background:#fff;color:#3a3a3c;font-size:14px">Dieses Gerät behalten</button></div>';
+  el.style.display='block';
+  document.getElementById('cl-yes').onclick=function(){
+    db=remote; ensure(); BK.ready=true; save(); renderHome();
+    el.style.display='none'; gsStatus('☁️ Aus Cloud geladen · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
+  };
+  document.getElementById('cl-no').onclick=function(){ el.style.display='none'; GS.dirty=true; };
+}
+function gsSetup(){
+  var tok=prompt('GitHub-Token eingeben (Fine-grained mit Recht „Gists: Read and write"):\n\nAnlegen unter: github.com → Settings → Developer settings → Fine-grained tokens → „Gists: Read/Write", sonst nichts.');
+  if(!tok||!tok.trim())return;
+  tok=tok.trim();
+  localStorage.setItem(GS.tkey,tok);
+  gsStatus('🔍 Prüfe Token…');
+  gsFindMine().then(function(id){
+    if(id){
+      localStorage.setItem(GS.ikey,id);
+      gsStatus('☁️ Bestehender Cloud-Speicher gefunden — prüfe Inhalt…');
+      return gsPull(true);
+    }
+    return gsApi('/gists','POST',{description:GS.desc,public:false,files:(function(){var f={};f[GS.file]={content:gsPayload()};return f;})()}).then(function(g){
+      localStorage.setItem(GS.ikey,g.id);
+      GS.dirty=false; GS.last=Date.now();
+      gsStatus('☁️ Cloud-Speicher angelegt · sync aktiv');
+    });
+  }).then(function(){ gsButtons(); })
+    .catch(function(){ localStorage.removeItem(GS.tkey); gsButtons(); });
+}
+function gsOff(){
+  if(!confirm('Cloud-Sync auf diesem Gerät abmelden?\nDer Cloud-Speicher selbst bleibt auf GitHub erhalten.'))return;
+  localStorage.removeItem(GS.tkey); localStorage.removeItem(GS.ikey);
+  gsButtons(); gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.');
+}
+if($('sync-btn')){
+  $('sync-btn').onclick=gsSetup;
+  $('sync-now').onclick=function(){ gsStatus('☁️ Synchronisiere…'); gsPull(true).then(function(){ if(!document.getElementById('cloudbar')||document.getElementById('cloudbar').style.display==='none')gsPush(false); }); };
+  $('sync-off').onclick=gsOff;
+  gsButtons();
+  if(gsTok()&&gsId()){ gsStatus('☁️ Sync aktiv'); setTimeout(function(){ gsPull(false); },1500); }
+}
+var saveWarned0=saveWarned;
+save=function(){
+  try{localStorage.setItem(LS,JSON.stringify(db));}
+  catch(e){
+    if(!saveWarned){ saveWarned=true;
+      setTimeout(function(){ alert('⚠️ Speichern im Browser fehlgeschlagen!\nDer Browser blockiert den Speicher dieser Seite.\n\nTipp (DuckDuckGo Browser):\n• Menü → „Website-Einstellungen“ → Datentracking/Trackerblocker für diese Seite lockern\n• Oder Seite im normalen Chrome öffnen\n\nDie Auto-Sicherung (IndexedDB) läuft weiter, sobald sie erlaubt ist.'); },100);
+    }
+  }
+  bkPut();
+  GS.dirty=true;
+};
+setInterval(function(){ if(GS.dirty&&gsTok()&&gsId()&&!document.hidden)gsPush(true); },90000);
+document.addEventListener('visibilitychange',function(){ if(document.hidden){ if(GS.dirty&&gsTok()&&gsId())gsPush(true); } else setTimeout(tryRestoreBackup,600); });
 /* ---------- Start ---------- */
 load();
 show('home');
