@@ -472,6 +472,14 @@ footer a:hover{color:var(--accent)}
         <button class="btn green small grow" id="ed-campusc2" style="min-width:150px">🏛️ Campus C 2</button>
         <button class="btn green small grow" id="ed-campusc3" style="min-width:150px">🏛️ Campus C 3</button>
       </div>
+      <div class="row" style="margin-top:8px;flex-wrap:wrap">
+        <button class="btn green small grow" id="ed-gl1" style="min-width:100px">🟢 GL 1</button>
+        <button class="btn green small grow" id="ed-gl2" style="min-width:100px">🟢 GL 2</button>
+        <button class="btn green small grow" id="ed-gl3" style="min-width:100px">🟢 GL 3</button>
+        <button class="btn green small grow" id="ed-gl4" style="min-width:100px">🟢 GL 4</button>
+        <button class="btn green small grow" id="ed-gl5" style="min-width:100px">🟢 GL 5</button>
+        <button class="btn green small grow" id="ed-gl6" style="min-width:100px">🟢 GL 6</button>
+      </div>
     </div>
   </div>
 
@@ -1970,6 +1978,7 @@ $('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','�
 $('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Campus C 1',this);});
 $('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Campus C 2',this);});
 $('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Campus C 3',this);});
+[1,2,3,4,5,6].forEach(function(i){ $('ed-gl'+i).addEventListener('click',function(){loadPreset('greenline'+i+'.txt','🟢 GL '+i,this);}); });
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
 function splitMeanings(str){
