@@ -1041,6 +1041,54 @@ function bkDB(){ return new Promise(function(res){
     r.onerror=function(){ res(null); };
   }catch(e){ res(null); }
 });}
+/* Meta-Backup (IndexedDB): Profil-Liste, aktives Profil, Tokens, Theme.
+   DuckDuckGo & Co. loeschen localStorage beim Schliessen — IndexedDB
+   ueberlebt meist. Beim Start rekonstruieren wir daraus, falls needed. */
+function metaSave(force){
+  try{
+    /* Leeren Zustand nicht ueber gute Meta-Stand drueberschreiben
+       (Schutz, wenn der Browser gerade localStorage loescht).
+       Bewusstes Loschen ruft metaSave(true) auf. */
+    if(!force && !localStorage.getItem(PROFILES_KEY) && !localStorage.getItem(ACTIVE_KEY)) return;
+    var meta={
+      profiles:localStorage.getItem(PROFILES_KEY),
+      active:localStorage.getItem(ACTIVE_KEY),
+      theme:localStorage.getItem(THEME_KEY),
+      gistToken:gsTok(), gistId:gsId(),
+      bkFileTs:localStorage.getItem('vhBkFileTs:'+(activeId()||'')),
+      pw:localStorage.getItem('vhPw:'+(activeId()||'')),
+      ts:Date.now()
+    };
+    bkDB().then(function(d){ if(!d)return;
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(JSON.stringify(meta),'meta'); }catch(e){}
+    });
+  }catch(e){}
+}
+function metaRestore(){
+  return bkDB().then(function(d){ if(!d)return false;
+    return new Promise(function(res){
+      try{
+        var q=d.transaction('s').objectStore('s').get('meta');
+        q.onsuccess=function(){
+          var raw=q.result; if(!raw){res(false);return;}
+          var m; try{ m=JSON.parse(raw); }catch(e){ res(false); return; }
+          var restored=false;
+          try{
+            if(!localStorage.getItem(PROFILES_KEY)&&m.profiles){ localStorage.setItem(PROFILES_KEY,m.profiles); restored=true; }
+            if(!localStorage.getItem(ACTIVE_KEY)&&m.active){ localStorage.setItem(ACTIVE_KEY,m.active); restored=true; }
+            if(!localStorage.getItem(THEME_KEY)&&m.theme){ localStorage.setItem(THEME_KEY,m.theme); restored=true; }
+            if(!gsTok()&&m.gistToken){ localStorage.setItem(GS.tkey,m.gistToken); restored=true; }
+            if(!gsId()&&m.gistId){ localStorage.setItem(GS.ikey,m.gistId); restored=true; }
+            if(m.bkFileTs)localStorage.setItem('vhBkFileTs:'+(activeId()||''),m.bkFileTs);
+            if(m.pw&&!localStorage.getItem('vhPw:'+(activeId()||'')))localStorage.setItem('vhPw:'+(activeId()||''),m.pw);
+          }catch(e){}
+          res(restored);
+        };
+        q.onerror=function(){ res(false); };
+      }catch(e){ res(false); }
+    });
+  });
+}
 function bkPut(){
   try{
     if(!BK.ready)return; /* Erst nach dem Restore-Check schreiben, sonst leeren Stand ueberschreiben! */
@@ -1147,6 +1195,7 @@ function applyTheme(id){
   }
   try{localStorage.setItem(THEME_KEY,id);}catch(e){}
   renderThemeOpts();
+  metaSave();
 }
 function renderThemeOpts(){
   var box=document.getElementById('theme-opts'); if(!box)return;
@@ -2600,13 +2649,13 @@ function gsSetup(){
       GS.dirty=false; GS.last=Date.now();
       gsStatus('☁️ Cloud-Speicher angelegt · sync aktiv');
     });
-  }).then(function(){ gsButtons(); })
+  }).then(function(){ gsButtons(); metaSave(); })
     .catch(function(){ localStorage.removeItem(GS.tkey); gsButtons(); });
 }
 function gsOff(){
   if(!confirm('Cloud-Sync auf diesem Gerät abmelden?\nDer Cloud-Speicher selbst bleibt auf GitHub erhalten.'))return;
   localStorage.removeItem(GS.tkey); localStorage.removeItem(GS.ikey);
-  gsButtons(); gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.');
+  gsButtons(); gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.'); metaSave();
 }
 if($('sync-btn')){
   $('sync-btn').onclick=gsSetup;
@@ -2804,6 +2853,7 @@ function doSwitchProfile(pid){
   if(gsTok()&&gsId()){ gsStatus('☁️ Sync aktiv'); setTimeout(function(){ gsPull(false); },800); }
   else gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.');
   renderProfiles('prof-list'); renderBkInfo();
+  metaSave();
   show('home');
 }
 /* ---------- PIN-Schutz pro Profil (PBKDF2, nur Hash gespeichert) ---------- */
@@ -2981,16 +3031,24 @@ function deleteProfileFlow(){
     if(!p.suffix){
       ['vhData','vhBest','vhTheme','vhGistToken','vhGistId','vhBkFileTs'].forEach(function(k){ localStorage.removeItem(k); });
     }
-    bkDB().then(function(d){ if(!d)return;
-      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').delete('main:'+pid); }catch(e){}
-    });
     var a=profilesGet().filter(function(x){return x.id!==pid;});
     profilesSet(a);
     try{localStorage.removeItem(ACTIVE_KEY);}catch(e){}
     UNLOCKED={};
+    /* Meta in IndexedDB aktualisieren, DANN neu laden (sonst kehrt das Profil aus IndexedDB zurueck) */
+    var reloaded=false;
+    function doReload(){ if(reloaded)return; reloaded=true; location.reload(); }
+    bkDB().then(function(d){ if(!d){doReload();return;}
+      try{
+        var tx=d.transaction('s','readwrite');
+        tx.objectStore('s').delete('main:'+pid);
+        tx.objectStore('s').put(JSON.stringify({profiles:JSON.stringify(a),active:null,ts:Date.now()}),'meta');
+        tx.oncomplete=function(){ doReload(); };
+        tx.onerror=function(){ doReload(); };
+      }catch(e){ doReload(); }
+    });
+    setTimeout(doReload,1500);
   }catch(e){ alert('Löschen fehlgeschlagen: '+e); return; }
-  /* App neu starten -> Profil-Auswahl oder leer */
-  location.reload();
 }
 if($('dz-delete'))$('dz-delete').addEventListener('click',deleteProfileFlow);
 function renderBkInfo(){
@@ -3057,18 +3115,23 @@ function bkFileReminder(){
   document.getElementById('bk-yes').onclick=function(){ bkExportFile(); el.style.display='none'; };
   document.getElementById('bk-l8r').onclick=function(){ el.style.display='none'; };
 }
-/* ---------- Start ---------- */
-load();
-splitCampusC();
-fixCampusCBands();
-renameCampusCAlt();
-if(profilesGet().length!==1){ renderProfiles('pfl-list'); show('profiles'); }
-else show('home');
-renderBkInfo();
-tryRestoreBackup();
-setTimeout(bkFileReminder,4000);
-document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
-window.addEventListener('pagehide',bkGetNow);
+/* ---------- Start (nach Meta-Restaurierung aus IndexedDB) ---------- */
+function bootApp(){
+  load();
+  splitCampusC();
+  fixCampusCBands();
+  renameCampusCAlt();
+  if(profilesGet().length!==1){ renderProfiles('pfl-list'); show('profiles'); }
+  else show('home');
+  renderBkInfo();
+  tryRestoreBackup();
+  setTimeout(bkFileReminder,4000);
+  /* wenn Sync konfiguriert: Cloud-Stand ziehen */
+  if(gsTok()&&gsId()){ setTimeout(function(){ gsPull(false); },1200); }
+}
+metaRestore().then(function(restored){ bootApp(); }).catch(function(){ bootApp(); });
+document.addEventListener('visibilitychange',function(){ if(document.hidden){bkGetNow(); metaSave();} else setTimeout(tryRestoreBackup,600); });
+window.addEventListener('pagehide',function(){ bkGetNow(); metaSave(); });
 })();
 </script>
 </body>
