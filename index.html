@@ -893,7 +893,8 @@ var SAMPLE=[
 ];
 function mkPair(w,ms){ return {w:String(w||''),m:(ms||[]).slice(),level:0,falsch:0,zuletzt:null,akt:false}; }
 function defaultData(){
-  return {books:[{name:"Klasse 5",lang:'en',lessons:[{name:"Lektion 1",pairs:SAMPLE.map(function(a){return mkPair(a[0],a.slice(1));})}]}],aktiv:0,lesson:-1};
+  /* Neue Profile starten leer — Buecher werden bewusst importiert (Editor -> Presets) */
+  return {books:[],aktiv:0,lesson:-1};
 }
 function migrate(){
   /* altes Modell {sets:[{name,pairs:[{en,de}]}]} -> Buecher-Modell */
@@ -1185,6 +1186,18 @@ function bookPool(b){
 function renderHome(){
   var list=$('booklist');
   list.innerHTML='';
+  if(!db.books.length){
+    var empty=document.createElement('div');
+    empty.className='card';
+    empty.style.cssText='text-align:center;padding:26px 18px';
+    empty.innerHTML='<div style="font-size:2.2rem;margin-bottom:8px">📚</div>'+
+      '<div style="font-weight:700;font-size:1rem;margin-bottom:6px">Noch keine Bücher</div>'+
+      '<div class="small" style="margin-bottom:14px">Lade ein Lehrbuch aus der Liste oder füge eigene Wörter hinzu.</div>'+
+      '<button class="btn grow" id="home-import" style="margin-bottom:8px">📥 Buch hinzufügen</button>';
+    list.appendChild(empty);
+    document.getElementById('home-import').addEventListener('click',function(){show('editor');});
+    return;
+  }
   db.books.forEach(function(b,i){
     var ps=bookPool(b);
     var due=ps.filter(function(p){return !isLTM(p)&&isDue(p);}).length;
