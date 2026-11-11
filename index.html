@@ -533,6 +533,22 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     </div>
   </div>
 
+  <!-- ============ GERAE-EINSTUFUNG ============ -->
+  <div class="view" id="v-setup">
+    <h1 class="logo" style="font-size:1.5rem;margin:34px 0 6px">🦸 Vokabel-Held</h1>
+    <div class="small" style="text-align:center;margin-bottom:20px">Was ist dieses Gerät?</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <button class="btn" id="su-admin" style="padding:18px;text-align:left">
+        <div style="font-size:1.5rem;margin-bottom:4px">🛡️ Admin</div>
+        <div style="font-size:12.5px;opacity:.85">Profile anlegen und verwalten</div>
+      </button>
+      <button class="btn ghost" id="su-user" style="padding:18px;text-align:left">
+        <div style="font-size:1.5rem;margin-bottom:4px">🎒 Lerner</div>
+        <div style="font-size:12.5px;opacity:.85">Nur mein eigenes Profil verwenden</div>
+      </button>
+    </div>
+  </div>
+
   <!-- ============ PROFIL-AUSWAHL ============ -->
   <div class="view" id="v-profiles">
     <h1 class="logo" style="font-size:1.5rem;margin:26px 0 6px">Wer lernt heute?</h1>
@@ -860,16 +876,8 @@ function activeId(){ try{var a=localStorage.getItem(ACTIVE_KEY)||'';
 function activeProfile(){ var a=profilesGet(),id=activeId(); for(var i=0;i<a.length;i++){ if(a[i].id===id)return a[i]; } return null; }
 function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,20)||'kind'; }
 function ensureDefaultProfile(){
-  var a=profilesGet();
-  if(a.length)return;
-  var p={id:'p'+Date.now().toString(36), name:'Mein Profil', emoji:'😊', suffix:''};
-  a.push(p); profilesSet(a);
-  /* vorhandene globale Daten ins erste Profil migrieren */
-  try{
-    var map={'vhData':'vhData:'+p.id,'vhBest':'vhBest:'+p.id,'vhTheme':'vhTheme:'+p.id,'vhGistToken':'vhGistToken:'+p.id,'vhGistId':'vhGistId:'+p.id};
-    Object.keys(map).forEach(function(k){ var v=localStorage.getItem(k); if(v!=null&&!localStorage.getItem(map[k])) localStorage.setItem(map[k],v); });
-  }catch(e){}
-  try{localStorage.setItem(ACTIVE_KEY,p.id);}catch(e){}
+  /* keine Auto-Anlage mehr — Profile werden vom Admin erstellt.
+     Gerate-Einstufung uebernehmen: fehlender Modus -> Setup-Screen. */
 }
 function applyKeys(){
   var pid=activeId()||'default';
@@ -881,6 +889,7 @@ function applyKeys(){
   else { GS.desc='vh-sync:vokabelheld'; GS.file='vokabelheld.json'; }
 }
 ensureDefaultProfile();
+var RAW_ACTIVE=(function(){ try{return localStorage.getItem(ACTIVE_KEY)||'';}catch(e){return '';} })();
 applyKeys();
 var db=null;
 
@@ -1177,7 +1186,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings','gram','profiles'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings','gram','profiles','setup'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -1317,7 +1326,7 @@ $('bd-reg').addEventListener('click',function(){
   }
   startLearn(true);
 });
-$('gear-btn').addEventListener('click',function(){ renderProfiles('prof-list'); renderBkInfo(); renderPwBtn(); show('settings'); });
+$('gear-btn').addEventListener('click',function(){ renderProfiles('prof-list'); renderBkInfo(); renderPwBtn(); applyModeUI(); show('settings'); });
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 /* Report nur noch im Buch-Untermenue */
@@ -2760,6 +2769,8 @@ function profHasSync(p){ try{ return !!(localStorage.getItem('vhGistToken:'+p.id
 function renderProfiles(sel){
   var box=$(sel); if(!box)return;
   var a=profilesGet(), cur=activeId();
+  /* Lerner-Modus: nur das gebundene Profil anzeigen (RAW = vor Fallback) */
+  if(deviceMode()==='user'&&RAW_ACTIVE){ a=a.filter(function(p){return p.id===RAW_ACTIVE;}); }
   var h='';
   a.forEach(function(p){
     var wc=profWordCount(p);
@@ -2777,6 +2788,11 @@ function renderProfiles(sel){
 }
 function switchProfile(pid){
   if(pid===activeId()){ show('home'); return; }
+  /* Lerner-Modus: Bindung einmalig; danach kein Wechsel mehr */
+  if(deviceMode()==='user'&&RAW_ACTIVE&&RAW_ACTIVE!==pid){
+    alert('🔒 Dieses Gerät ist fest mit einem Profil verbunden.');
+    return;
+  }
   var target=null; profilesGet().forEach(function(p){ if(p.id===pid)target=p; });
   if(target&&profHasPw(pid)&&!profUnlocked(pid)){ askPwUnlock(target); return; }
   doSwitchProfile(pid);
@@ -2878,6 +2894,33 @@ function renderPwBtn(){
   } else b.textContent='🔐 Passwortschutz aktivieren';
 }
 if($('pw-btn'))$('pw-btn').addEventListener('click',function(){ setPwFlow(activeId()); });
+/* ---------- Gerate-Modus (Admin vs. Lerner) ---------- */
+var MODE_KEY='vhMode';
+function deviceMode(){ try{return localStorage.getItem(MODE_KEY)||'';}catch(e){return '';} }
+function setDeviceMode(m){ try{localStorage.setItem(MODE_KEY,m);}catch(e){} }
+function applyModeUI(){
+  var admin=(deviceMode()==='admin');
+  /* Admin-only: komplette Profil-Verwaltungs-Karte + Danger Zone */
+  var pl=$('prof-list');
+  var card=pl?pl.closest('.card'):null;
+  if(card)card.style.display=admin?'':'none';
+  var dz=document.querySelector('#stab-profile .card[style*="ffd6d6"]'); if(dz)dz.style.display=admin?'':'none';
+  var pfa=$('pfl-add'); if(pfa)pfa.style.display=admin?'':'none';
+}
+if($('su-admin'))$('su-admin').addEventListener('click',function(){
+  setDeviceMode('admin');
+  renderProfiles('prof-list'); renderBkInfo(); applyModeUI();
+  show('home');
+});
+if($('su-user'))$('su-user').addEventListener('click',function(){
+  setDeviceMode('user');
+  /* Lerner waehlt EINMAL sein Profil, dann ist es fest gebunden */
+  var a=profilesGet();
+  if(!a.length){ alert('Es sind noch keine Profile angelegt — bitte zuerst den Admin fragen.'); show('setup'); return; }
+  renderProfiles('pfl-list');
+  show('profiles');
+});
+/* Lerner-Bindung ist direkt in switchProfile implementiert */
 /* ---------- Einstellungs-Tabs ---------- */
 function setTab(name){
   Array.prototype.forEach.call(document.querySelectorAll('.set-tab'),function(t){
@@ -3039,9 +3082,15 @@ load();
 splitCampusC();
 fixCampusCBands();
 renameCampusCAlt();
-if(profilesGet().length>1){ renderProfiles('pfl-list'); show('profiles'); }
-else show('home');
-renderBkInfo();
+var _mode=deviceMode();
+var _rawActive=RAW_ACTIVE;
+if(!_mode){ show('setup'); }
+else if(_mode==='user'){
+  if(!_rawActive){ renderProfiles('pfl-list'); show('profiles'); }
+  else show('home');
+}
+else { renderProfiles('prof-list'); show('home'); }
+renderBkInfo(); applyModeUI();
 tryRestoreBackup();
 setTimeout(bkFileReminder,4000);
 document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
