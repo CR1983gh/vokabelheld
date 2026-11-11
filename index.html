@@ -1453,7 +1453,7 @@ function startLearn(onlyDue,presetIdx){
   /* Reihenfolge: niedrigste Stufe zuerst, dann aufsteigend; innerhalb gleicher Stufe zufaellig */
   var q=shuffle(idx);
   q.sort(function(a,b){ return (ps[a].level||0)-(ps[b].level||0); });
-  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,test:null,hist:[],ws:function(){return poolPairs();}};
+  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,test:null,hist:[],answered:{},ws:function(){return poolPairs();}};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
@@ -1492,7 +1492,18 @@ function fitSession(words){
     }
   });
   var fs=minFs===null?'':minFs+'px';
-  els.forEach(function(el){ if(el)el.style.fontSize=fs; });
+  els.forEach(function(pair){ var el=pair[0]; if(el)el.style.fontSize=fs; });
+}
+/* Loesung rendern (Grid ab 2 Bedeutungen) */
+function renderSolution(p){
+  var ms=(p.m||[]).filter(function(x){return String(x).trim();});
+  if(ms.length>=2){
+    var g=document.createElement('div'); g.className='solgrid';
+    ms.forEach(function(m){ var s=document.createElement('span'); s.textContent=m; g.appendChild(s); });
+    $('l-solution').innerHTML=''; $('l-solution').appendChild(g);
+  } else {
+    $('l-solution').textContent=ms.join(' · ');
+  }
 }
 function renderLearn(){
   if(!L)return;
@@ -1515,19 +1526,30 @@ function renderLearn(){
   $('l-reveal').style.display='';
   $('l-solution').style.display='none';
   $('l-knowrow').style.display='none';
+  /* Bereits beantwortetes Wort (via ◀ zurueck): Loesung sofort anzeigen */
+  var answered=!!(L.answered&&L.answered[L.cur]);
+  if(answered){
+    renderSolution(p);
+    $('l-solution').style.display='';
+    $('l-reveal').style.display='none';
+    $('l-answerrow').style.display='none';
+    $('l-flipwrap').style.display='';
+    $('l-fb').className='fb';
+    $('l-fb').innerHTML='<span style="font-size:.85rem;color:#8e8e93">Wiederholung — bereits beantwortet</span>';
+    L.locked=true;
+  }
   renderLevelBar($('l-level'),p.level);
   updateLProg();
   var pb=$('l-prev'); if(pb)pb.disabled=!(L.hist&&L.hist.length);
-  if(!FLIP) setTimeout(function(){try{inp.focus();}catch(e){}},60);
+  if(!FLIP&&!answered) setTimeout(function(){try{inp.focus();}catch(e){}},60);
 }
 $('l-mode').addEventListener('click',function(){ FLIP=!FLIP; saveFlip(); updateModeBtn(); if(L) renderLearn(); });
 /* Zurueck: letztes beantwortetes Wort erneut anzeigen (ohne Strafe) */
 $('l-prev').addEventListener('click',function(){
   if(!L||!L.hist||!L.hist.length)return;
   var last=L.hist.pop();
-  L.queue.unshift(last);
+  L.queue.unshift(last.i);
   L.done=Math.max(0,L.done-1);
-  /* falls das letzte als falsch gezaehlt wurde, ziehen wir es nicht zurueck — nur Position */
   renderLearn();
 });
 /* Ueberspringen: aktuelles Wort ans Ende der Queue, ohne Bewertung */
@@ -1558,7 +1580,8 @@ function flipJudge(right){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   L.locked=true; L.done++;
-  L.hist.push(L.cur); /* fuer Zurueck-Blaettern */
+  L.hist.push({i:L.cur,right:!!right}); /* fuer Zurueck-Blaettern */
+  L.answered[L.cur]=true;
   var card=$('l-card'), fb=$('l-fb');
   $('l-knowrow').style.display='none';
   if(right){
@@ -1627,11 +1650,12 @@ function learnCheck(){
   if(!norm(val))return;
   L.locked=true;
   L.done++;
-  L.hist.push(L.cur); /* fuer Zurueck-Blaettern */
   $('l-in').disabled=true;
   var card=$('l-card');
   var fb=$('l-fb');
   var right=isCorrect(val,p);
+  L.hist.push({i:L.cur,right:right}); /* fuer Zurueck-Blaettern */
+  L.answered[L.cur]=true;
   if(right&&L.hint){
     L.tips++;
     fb.className='fb';
