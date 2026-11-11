@@ -550,7 +550,8 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     <div class="row" style="margin-top:8px">
       <button class="btn ghost grow" id="pfl-cloud" style="border-color:#0A84FF;color:#0A66D6">☁️ Profil aus Cloud wiederherstellen</button>
     </div>
-    <div class="small" style="text-align:center;margin-top:6px;color:#8e8e93">Nach dem „Feuer"-Löschen hier einfach den GitHub-Token eingeben — Bücher &amp; Lernstände kommen zurück.</div>
+    <div class="small" id="pfl-diag" style="text-align:center;margin-top:8px;color:#8e8e93"></div>
+    <div class="small" style="text-align:center;margin-top:6px;color:#8e8e93;line-height:1.5">💡 <b>DuckDuckGo-Trick:</b> Im Feuer-Bildschirm diese Seite <b>gedrückt halten</b> → <b>„Seite feuersicher machen"</b> (Fireproof). Dann überlebt der Cookie das Feuer und dein Profil erscheint von allein.</div>
   </div>
 
   <!-- ============ GRAMMATIK-TRAINING ============ -->
@@ -3279,11 +3280,18 @@ metaRestore().then(function(restored){
     var mm=document.cookie.match(/vh_tok_([^=;]+)=([^;]+)/);
     if(mm&&mm[2])ckTok=decodeURIComponent(mm[2]);
   }catch(e){}
+  function diag(msg){ var el=document.getElementById('pfl-diag'); if(el)el.textContent=msg; }
+  /* Cookie-Schreibtest: Browser-Cookies deaktiviert? */
+  try{ document.cookie='vh_cktest=1;path=/;SameSite=Lax'; }catch(e){}
+  var ckWorks=document.cookie.indexOf('vh_cktest')>=0;
+  if(!ckWorks) diag('⚠️ Browser blockiert Cookies — Auto-Rettung unmöglich. Bitte Cookies für diese Seite erlauben.');
   if(profilesGet().length===0 && ckTok){
+    diag('🔄 Profil wird automatisch aus der Cloud geladen…');
     rescueFromToken(ckTok).then(function(ok){
       bootApp();
       if(ok)gsStatus('☁️ Profil automatisch aus Cloud geladen');
-    }).catch(function(){ bootApp(); });
+      else diag('⚠️ Cloud-Rettung fehlgeschlagen — bitte Button „Aus Cloud wiederherstellen" nutzen.');
+    }).catch(function(){ bootApp(); diag('⚠️ Cloud nicht erreichbar.'); });
   } else bootApp();
 }).catch(function(){ bootApp(); });
 document.addEventListener('visibilitychange',function(){ if(document.hidden){bkGetNow(); metaSave();} else setTimeout(tryRestoreBackup,600); });
