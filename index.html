@@ -44,7 +44,10 @@ body{
 #l-skip.card-nav{right:0;border-radius:14px 0 0 14px}
 #v-learn .flipwrap{flex:1;display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
-#l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--accent)}
+#l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--accent);padding:0 46px}
+.solgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;width:100%;max-width:420px}
+.solgrid span{text-align:center;-webkit-hyphens:auto;hyphens:auto;overflow-wrap:break-word;line-height:1.15}
+.solgrid span:only-child{grid-column:1 / -1}
 #l-reveal{margin-top:auto}
 #v-learn .answerrow{margin-top:auto}
 h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
@@ -144,7 +147,8 @@ select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden;font-size:.95re
 }
 .vcard.ok{border-color:var(--green);background:#f2fbf5}
 .vcard.bad{border-color:var(--red);background:#fdf3f4}
-.vword{font-size:2.2rem;font-weight:800;word-break:break-word;min-height:2.6rem;letter-spacing:-.02em;color:var(--ink);padding:0 46px;transition:font-size .15s}
+.vword{font-size:2.2rem;font-weight:800;min-height:2.6rem;letter-spacing:-.02em;color:var(--ink);padding:0 46px;
+  -webkit-hyphens:auto;hyphens:auto;overflow-wrap:break-word;line-height:1.15}
 .levelbar{display:flex;gap:4px;justify-content:center;margin:12px 0 2px}
 .levelbar i{width:26px;height:8px;border-radius:6px;background:#e8e8ee}
 .levelbar i.on{background:var(--yellow)}
@@ -1463,14 +1467,15 @@ function startLearn(onlyDue,presetIdx){
 /* Einheitliche Schriftgroesse pro Session: laengstes Wort der Queue wird gemessen,
    alle Karten bekommen dieselbe (ggf. kleinere) Groesse. */
 function fitSession(words){
-  var els=[$('l-word'),$('l-solution')];
+  var els=[[$('l-word'),1],[$('l-solution'),0.5]]; /* Faktor: Grid-Zellen = halbe Breite */
   var minFs=null;
-  els.forEach(function(el){
+  els.forEach(function(pair){
+    var el=pair[0], wf=pair[1];
     if(!el)return;
     el.style.fontSize='';
     var cs=getComputedStyle(el);
     var max=parseFloat(cs.fontSize)||35;
-    var avail=el.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
+    var avail=(el.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0))*wf;
     if(avail<=0)return;
     var widest=0;
     var probe=document.createElement('span');
@@ -1481,8 +1486,9 @@ function fitSession(words){
       if(probe.offsetWidth>widest)widest=probe.offsetWidth;
     });
     document.body.removeChild(probe);
-    if(widest>avail){
-      var fs=Math.max(15,Math.floor(max*avail/widest));
+    if(widest>avail*1.9){
+      /* 2 Zeilen erlaubt — nur wenn es selbst dann nicht passt, kleiner machen */
+      var fs=Math.max(15,Math.floor(max*avail*1.9/widest));
       if(minFs===null||fs<minFs)minFs=fs;
     }
   });
@@ -1536,7 +1542,14 @@ $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
-  $('l-solution').textContent=dispM(p);
+  var ms=(p.m||[]).filter(function(x){return String(x).trim();});
+  if(ms.length>=3){
+    var g=document.createElement('div'); g.className='solgrid';
+    ms.forEach(function(m){ var s=document.createElement('span'); s.textContent=m; g.appendChild(s); });
+    $('l-solution').innerHTML=''; $('l-solution').appendChild(g);
+  } else {
+    $('l-solution').textContent=ms.join(' · ');
+  }
   $('l-solution').style.display='';
   $('l-knowrow').style.display='';
 });
