@@ -826,8 +826,10 @@ function profilesGet(){
   try{
     var a=JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]');
     if(!Array.isArray(a))a=[];
-    /* Migration: bestehende Alt-Daten (ohne Profile) -> Profil 1 retten */
-    if(!a.length){
+    /* Migration: bestehende Alt-Daten (ohne Profile) -> Profil  retten.
+       Nur EINMAL: vhMigrated-Marker verhindert, dass ein geloeschtes Profil
+       aus den Alt-Keys wieder aufersteht. */
+    if(!a.length && !localStorage.getItem('vhMigrated')){
       var legacy=null;
       try{ legacy=JSON.parse(localStorage.getItem('vhData')||'null'); }catch(e){}
       var hasLegacy=!!(legacy&&legacy.books&&legacy.books.length)||
@@ -846,6 +848,7 @@ function profilesGet(){
         try{localStorage.setItem(ACTIVE_KEY,'main');}catch(e){}
         localStorage.setItem(PROFILES_KEY,JSON.stringify(a));
       }
+      try{localStorage.setItem('vhMigrated','1');}catch(e){}
     }
     return a;
   }catch(e){return [];}
@@ -2950,6 +2953,11 @@ function deleteProfileFlow(){
     ['vhData:','vhBest:','vhTheme:','vhGistToken:','vhGistId:','vhBkFileTs:','vhPw:','vhBkNag:'].forEach(function(pre){
       localStorage.removeItem(pre+pid);
     });
+    /* Profil ohne Suffix (Haupt-/Alt-Profil) geloescht -> auch Alt-Keys (ohne Suffix) entfernen,
+       damit die Migration es nicht aus vhData/vhTheme wieder auferstehen laesst */
+    if(!p.suffix){
+      ['vhData','vhBest','vhTheme','vhGistToken','vhGistId','vhBkFileTs'].forEach(function(k){ localStorage.removeItem(k); });
+    }
     bkDB().then(function(d){ if(!d)return;
       try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').delete('main:'+pid); }catch(e){}
     });
