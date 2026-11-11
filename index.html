@@ -1460,8 +1460,10 @@ function startLearn(onlyDue,presetIdx){
 function fitWord(el){
   if(!el)return;
   el.style.fontSize='';
-  var max=parseFloat(getComputedStyle(el).fontSize)||35;
-  var avail=el.clientWidth;
+  var cs=getComputedStyle(el);
+  var max=parseFloat(cs.fontSize)||35;
+  /* clientWidth inkludiert Padding — nutzbare Breite = clientWidth - Padding */
+  var avail=el.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
   if(avail<=0)return;
   /* Mess-Div mit gleichem Style */
   var probe=document.createElement('span');
@@ -1471,7 +1473,7 @@ function fitWord(el){
   var w=probe.offsetWidth;
   document.body.removeChild(probe);
   if(w>avail){
-    var fs=Math.max(18,Math.floor(max*avail/w));
+    var fs=Math.max(16,Math.floor(max*avail/w));
     el.style.fontSize=fs+'px';
   }
 }
@@ -1525,6 +1527,7 @@ $('l-reveal').addEventListener('click',function(){
   this.style.display='none';
   $('l-solution').textContent=dispM(p);
   $('l-solution').style.display='';
+  fitWord($('l-solution'));
   $('l-knowrow').style.display='';
 });
 $('l-know').addEventListener('click',function(){ flipJudge(true); });
