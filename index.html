@@ -2565,6 +2565,57 @@ try{
 /* GS wird oben im Profil-System deklariert; Schluessel pro Profil via applyKeys() */
 function gsTok(){ try{return localStorage.getItem(GS.tkey)||'';}catch(e){return '';} }
 function gsId(){ try{return localStorage.getItem(GS.ikey)||'';}catch(e){return '';} }
+/* Cookie-Fallback: DuckDuckGo "Fire" loescht localStorage UND IndexedDB —
+   Cookies ueberleben meist. Token wird 1:1 gespiegelt. */
+function ckSet(name,val){ try{ document.cookie=name+'='+encodeURIComponent(val)+';max-age=31536000;path=/;SameSite=Lax'; }catch(e){} }
+function ckGet(name){ try{ var m=document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)')); return m?decodeURIComponent(m[1]):''; }catch(e){ return ''; } }
+function ckTokenMirror(){ var t=gsTok(),i=gsId(); var p=activeProfile(); var k=(p&&p.suffix)||'x';
+  if(t)ckSet('vh_tok_'+k,t); if(i)ckSet('vh_gid_'+k,i); }
+/* Cloud-Rescue: lokales Profil komplett weg (Fire hat alles geloescht) aber Cookie mit
+   Token existiert noch -> Profil ueber den Gist auf GitHub zurueckholen. */
+function cloudRescue(){
+  var m=document.cookie.match(/vh_tok_([^=;]+)=([^;]+)/g)||[];
+  var gidCookies={};
+  (document.cookie.match(/vh_gid_([^=;]+)=([^;]+)/g)||[]).forEach(function(c){
+    var kv=c.split('='); gidCookies[kv[0].replace('vh_gid_','')]=decodeURIComponent(kv[1]);
+  });
+  var chain=Promise.resolve(false);
+  m.forEach(function(c){
+    chain=chain.then(function(done){
+      if(done)return true;
+      var kv=c.split('='); var suf=kv[0].replace('vh_tok_',''); var tok=decodeURIComponent(kv[1]);
+      if(!tok)return false;
+      var file='vokabelheld.json', desc='vh-sync:vokabelheld';
+      if(suf&&suf!=='x'){ file='vokabelheld-'+suf+'.json'; desc='vh-sync:vokabelheld:'+suf; }
+      return fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'Bearer '+tok,Accept:'application/vnd.github+json'}})
+        .then(function(r){ if(!r.ok)throw 0; return r.json(); })
+        .then(function(list){
+          for(var i=0;i<list.length;i++){
+            var g=list[i];
+            if(g.description===desc&&g.files&&g.files[file]){
+              return fetch(g.files[file].browser_download_url).then(function(r){return r.text();}).then(function(raw){
+                var obj; try{ obj=JSON.parse(raw); }catch(e){ return false; }
+                var pi=obj.profile||{};
+                var rdb=(obj.data&&obj.app)?obj.data:obj; /* altes Format: db direkt */
+                var p={id:'p'+Date.now().toString(36),name:pi.name||suf,emoji:pi.emoji||'⭐',suffix:pi.suffix||suf};
+                var a=profilesGet().filter(function(x){return x.suffix!==p.suffix;});
+                a.push(p); profilesSet(a);
+                try{localStorage.setItem(ACTIVE_KEY,p.id);}catch(e){}
+                applyKeys();
+                localStorage.setItem(GS.tkey,tok);
+                localStorage.setItem(GS.ikey,g.id);
+                db=rdb||defaultData(); ensure(); BK.ready=true; save();
+                ckTokenMirror();
+                return true;
+              });
+            }
+          }
+          return false;
+        }).catch(function(){ return false; });
+    });
+  });
+  return chain;
+}
 function gsStatus(msg){ var el=$('sync-status'); if(el)el.textContent=msg; }
 function gsButtons(){
   var on=!!(gsTok()&&gsId());
@@ -2582,7 +2633,9 @@ function gsApi(path,method,body){
     return r.json().then(function(j){ if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status)); return j; });
   });
 }
-function gsPayload(){ db.meta={ts:Date.now(),dev:navigator.userAgent.slice(0,40)}; return JSON.stringify(db); }
+function gsPayload(){ db.meta={ts:Date.now(),dev:navigator.userAgent.slice(0,40)};
+  var p=activeProfile();
+  return JSON.stringify({app:'vokabelheld',kind:'sync',profile:p?{name:p.name,emoji:p.emoji,suffix:p.suffix||''}:null,data:db}); }
 function gsFindMine(){
   return gsApi('/gists?per_page=100').then(function(list){
     for(var i=0;i<list.length;i++){
@@ -2610,9 +2663,11 @@ function gsPull(force){
     GS.busy=false;
     if(!raw)return;
     var remote; try{ remote=JSON.parse(raw); }catch(e){ return; }
-    var rt=(remote.meta&&remote.meta.ts)||0, lt=(db.meta&&db.meta.ts)||0;
+    /* Huellenformat {app,kind,profile,data} oder altes direktes db-Format */
+    var rdb=(remote&&remote.app&&remote.data)?remote.data:remote;
+    var rt=(rdb.meta&&rdb.meta.ts)||0, lt=(db.meta&&db.meta.ts)||0;
     if(rt>lt+5000&&(force||rt-lt>60000)){
-      showCloudRestore(remote,rt);
+      showCloudRestore(rdb,rt);
     } else if(rt>GS.last){ GS.last=rt; }
   }).catch(function(){ GS.busy=false; });
 }
@@ -2637,15 +2692,19 @@ function gsSetup(){
   if(!tok||!tok.trim())return;
   tok=tok.trim();
   localStorage.setItem(GS.tkey,tok);
+  var _p=activeProfile(); var _k=(_p&&_p.suffix)||'x';
+  ckSet('vh_tok_'+_k,tok);
   gsStatus('🔍 Prüfe Token…');
   gsFindMine().then(function(id){
     if(id){
       localStorage.setItem(GS.ikey,id);
+      ckSet('vh_gid_'+_k,id);
       gsStatus('☁️ Bestehender Cloud-Speicher gefunden — prüfe Inhalt…');
       return gsPull(true);
     }
     return gsApi('/gists','POST',{description:GS.desc,public:false,files:(function(){var f={};f[GS.file]={content:gsPayload()};return f;})()}).then(function(g){
       localStorage.setItem(GS.ikey,g.id);
+      ckSet('vh_gid_'+_k,g.id);
       GS.dirty=false; GS.last=Date.now();
       gsStatus('☁️ Cloud-Speicher angelegt · sync aktiv');
     });
@@ -2655,6 +2714,8 @@ function gsSetup(){
 function gsOff(){
   if(!confirm('Cloud-Sync auf diesem Gerät abmelden?\nDer Cloud-Speicher selbst bleibt auf GitHub erhalten.'))return;
   localStorage.removeItem(GS.tkey); localStorage.removeItem(GS.ikey);
+  var _p=activeProfile(); var _k=(_p&&_p.suffix)||'x';
+  ckSet('vh_tok_'+_k,''); ckSet('vh_gid_'+_k,'');
   gsButtons(); gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.'); metaSave();
 }
 if($('sync-btn')){
@@ -3026,6 +3087,9 @@ function deleteProfileFlow(){
     ['vhData:','vhBest:','vhTheme:','vhGistToken:','vhGistId:','vhBkFileTs:','vhPw:','vhBkNag:'].forEach(function(pre){
       localStorage.removeItem(pre+pid);
     });
+    /* Cookie-Mirror des Profils loeschen, sonst wuerde der Cloud-Rescue es zurueckholen */
+    ckSet('vh_tok_'+pid,''); ckSet('vh_gid_'+pid,'');
+    if(p.suffix){ ckSet('vh_tok_'+p.suffix,''); ckSet('vh_gid_'+p.suffix,''); }
     /* Profil ohne Suffix (Haupt-/Alt-Profil) geloescht -> auch Alt-Keys (ohne Suffix) entfernen,
        damit die Migration es nicht aus vhData/vhTheme wieder auferstehen laesst */
     if(!p.suffix){
@@ -3129,7 +3193,15 @@ function bootApp(){
   /* wenn Sync konfiguriert: Cloud-Stand ziehen */
   if(gsTok()&&gsId()){ setTimeout(function(){ gsPull(false); },1200); }
 }
-metaRestore().then(function(restored){ bootApp(); }).catch(function(){ bootApp(); });
+metaRestore().then(function(restored){
+  /* Fire-Szenario: IndexedDB + localStorage weg, aber Cookie-Token noch da -> Cloud-Rescue */
+  if(profilesGet().length===0 && /vh_tok_/.test(document.cookie)){
+    cloudRescue().then(function(ok){
+      bootApp();
+      if(ok)gsStatus('☁️ Profil aus Cloud wiederhergestellt');
+    }).catch(function(){ bootApp(); });
+  } else bootApp();
+}).catch(function(){ bootApp(); });
 document.addEventListener('visibilitychange',function(){ if(document.hidden){bkGetNow(); metaSave();} else setTimeout(tryRestoreBackup,600); });
 window.addEventListener('pagehide',function(){ bkGetNow(); metaSave(); });
 })();
