@@ -35,6 +35,13 @@ body{
 /* Lern-Ansicht bildschirmfuellend: Karte streckt, Buttons unten am Daumen */
 #v-learn.active{display:flex;flex-direction:column}
 #v-learn .vcard{flex:1;display:flex;flex-direction:column;margin-bottom:6px}
+.card-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:38px;height:64px;
+  border:none;background:rgba(120,120,128,.07);color:#8e8e93;font-size:1.7rem;line-height:1;
+  cursor:pointer;padding:0;transition:background .15s,color .15s}
+.card-nav:active{background:rgba(10,102,214,.15);color:#0a66d6}
+.card-nav:disabled{opacity:.25;cursor:default}
+#l-prev.card-nav{left:0;border-radius:0 14px 14px 0}
+#l-skip.card-nav{right:0;border-radius:14px 0 0 14px}
 #v-learn .flipwrap{flex:1;display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
 #l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--accent)}
@@ -658,13 +665,13 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <div class="title">📚 Lernen</div>
       <div class="row" style="gap:4px">
         <button class="btn ghost small" id="l-mode" title="Modus wechseln">🔄</button>
-        <button class="btn ghost small" id="l-prev" title="Zurück zum letzten Wort">◀</button>
-        <button class="btn ghost small" id="l-skip" title="Wort überspringen">▶</button>
         <button class="btn ghost small" id="l-hint">💡</button>
       </div>
     </div>
     <div class="prog" id="l-prog"></div>
-    <div class="vcard" id="l-card">
+    <div class="vcard" id="l-card" style="position:relative">
+      <button class="card-nav" id="l-prev" title="Zurück">‹</button>
+      <button class="card-nav" id="l-skip" title="Überspringen">›</button>
       <div class="vword" id="l-word">…</div>
       <div class="levelbar" id="l-level"></div>
       <div class="hintline" id="l-hintline"></div>
