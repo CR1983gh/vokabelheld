@@ -433,6 +433,13 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
 .pfl-name{display:block;font-weight:800;font-size:1.05rem;color:var(--ink)}
 .pfl-sub{display:block;font-size:.75rem;color:var(--ink2);margin-top:2px}
 .pfl-check{color:#0a66d6;font-weight:900;font-size:1.2rem}
+.set-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.set-tab{flex:1;min-width:80px;padding:10px 8px;border:1.5px solid var(--hairline);border-radius:12px;background:#fff;color:var(--ink2);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.set-tab.sel{border-color:#0a66d6;background:#0a66d6;color:#fff}
+.emopick{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:4px}
+.emopick button{font-size:1.7rem;padding:8px 0;border:1.5px solid #e3e3e8;border-radius:12px;background:#fafafa;cursor:pointer;line-height:1.2}
+.emopick button:active{background:#e8f1fc}
+.emopick button.sel{border-color:#0a66d6;background:#e8f1fc;box-shadow:0 0 0 2px rgba(10,102,214,.25)}
 .tmini-card{position:absolute;left:8px;right:8px;top:8px;height:26px;border-radius:6px;background:rgba(255,255,255,.55);box-shadow:0 2px 6px rgba(0,0,0,.15)}
 .tmini-btn{position:absolute;left:8px;bottom:8px;width:55%;height:14px;border-radius:7px;background:rgba(0,0,0,.35)}
 .themeopt .tn{display:block}
@@ -453,52 +460,75 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     <div class="row" style="margin-bottom:12px">
       <button class="btn ghost small" data-home>← Home</button>
     </div>
-    <h1 class="logo" style="font-size:1.4rem;margin-bottom:14px">Einstellungen</h1>
-    <div class="card">
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn ghost grow" id="home-newset">＋ Neues Buch</button>
-      </div>
-      <div class="row">
-        <button class="btn ghost grow" id="home-editor">✍️ Bücher bearbeiten</button>
-      </div>
+    <h1 class="logo" style="font-size:1.4rem;margin-bottom:12px">Einstellungen</h1>
+    <div class="set-tabs" id="set-tabs">
+      <button class="set-tab sel" data-stab="books">📚 Bücher</button>
+      <button class="set-tab" data-stab="design">🎨 Design</button>
+      <button class="set-tab" data-stab="profile">👤 Profil</button>
+      <button class="set-tab" data-stab="data">💾 Daten</button>
     </div>
-    <div class="card" style="margin-top:12px">
-      <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">🎨 Design</div>
-      <div id="theme-opts" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-    <div class="card" style="margin-top:12px">
-      <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">👥 Profile</div>
-      <div id="prof-list" style="display:flex;flex-direction:column;gap:8px"></div>
-      <div class="row" style="margin-top:10px">
-        <button class="btn ghost grow" id="prof-add">＋ Neues Profil</button>
-        <button class="btn ghost grow" id="pw-btn">🔐 Passwortschutz aktivieren</button>
-      </div>
-      <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist). Mit 🔐 ist das Profil nur mit Passwort wechselbar.</div>
-    </div>
-    <div class="card" style="margin-top:12px;border:1.5px solid #ffd6d6">
-      <div style="font-size:13.5px;font-weight:700;color:#d70015;margin-bottom:8px">⚠️ Danger Zone</div>
-      <div class="small" style="margin-bottom:10px">Löscht das <b>aktive Profil</b> (<span id="dz-name">—</span>) mit allen Büchern und Lernständen von diesem Gerät. Empfohlen: vorher ein Backup speichern!</div>
-      <div class="row">
-        <button class="btn grow" id="dz-delete" style="background:#d70015;color:#fff;font-weight:700">🗑️ Dieses Profil löschen</button>
+    <!-- Tab: Buecher -->
+    <div class="set-pane" id="stab-books" style="display:block">
+      <div class="card">
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn ghost grow" id="home-newset">＋ Neues Buch</button>
+        </div>
+        <div class="row">
+          <button class="btn ghost grow" id="home-editor">✍️ Bücher bearbeiten</button>
+        </div>
       </div>
     </div>
-    <div class="card" style="margin-top:12px">
-      <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">💾 Backup-Datei</div>
-      <div id="bk-info" class="small" style="margin-bottom:8px"></div>
-      <div class="row">
-        <button class="btn ghost grow" id="bk-export">⬇️ Backup speichern</button>
-        <button class="btn ghost grow" id="bk-import">⬆️ Backup laden</button>
+    <!-- Tab: Design -->
+    <div class="set-pane" id="stab-design" style="display:none">
+      <div class="card">
+        <div id="theme-opts" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
-      <input type="file" id="bk-file" accept=".json,application/json" style="display:none">
-      <div class="small" style="margin-top:8px">Die Datei enthält alle Bücher und Lernstände dieses Profils — überlebt jeden Browser-Crash und ist übertragbar auf neue Geräte.</div>
     </div>
-    <div class="card" style="margin-top:12px">
-      <div style="font-size:13.5px;font-weight:600;margin-bottom:6px">☁️ Cloud-Sync (GitHub)</div>
-      <div id="sync-status" style="font-size:12.5px;color:#6b6b70;line-height:1.45">Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.</div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn ghost grow" id="sync-btn">Einrichten</button>
-        <button class="btn ghost grow" id="sync-now" style="display:none">Jetzt syncen</button>
-        <button class="btn ghost grow" id="sync-off" style="display:none">Abmelden</button>
+    <!-- Tab: Profil -->
+    <div class="set-pane" id="stab-profile" style="display:none">
+      <div class="card">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">👥 Profile wechseln</div>
+        <div id="prof-list" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost grow" id="prof-add">＋ Neues Profil</button>
+        </div>
+        <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist).</div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">🔐 Sicherheit</div>
+        <div class="row">
+          <button class="btn ghost grow" id="pw-btn">Passwortschutz aktivieren</button>
+        </div>
+        <div class="small" style="margin-top:8px">Mit 🔐 ist das Profil nur mit Passwort wechselbar.</div>
+      </div>
+      <div class="card" style="margin-top:12px;border:1.5px solid #ffd6d6">
+        <div style="font-size:13.5px;font-weight:700;color:#d70015;margin-bottom:8px">⚠️ Danger Zone</div>
+        <div class="small" style="margin-bottom:10px">Löscht das <b>aktive Profil</b> (<span id="dz-name">—</span>) mit allen Büchern und Lernständen von diesem Gerät. Empfohlen: vorher ein Backup speichern!</div>
+        <div class="row">
+          <button class="btn grow" id="dz-delete" style="background:#d70015;color:#fff;font-weight:700">🗑️ Dieses Profil löschen</button>
+        </div>
+      </div>
+    </div>
+    <!-- Tab: Daten -->
+    <div class="set-pane" id="stab-data" style="display:none">
+      <div class="card">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">💾 Backup-Datei</div>
+        <div id="bk-info" class="small" style="margin-bottom:8px"></div>
+        <div class="row">
+          <button class="btn ghost grow" id="bk-export">⬇️ Backup speichern</button>
+          <button class="btn ghost grow" id="bk-import">⬆️ Backup laden</button>
+        </div>
+        <input type="file" id="bk-file" accept=".json,application/json" style="display:none">
+        <div class="small" style="margin-top:8px">Die Datei enthält alle Bücher und Lernstände dieses Profils — überlebt jeden Browser-Crash und ist übertragbar auf neue Geräte.</div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:6px">☁️ Cloud-Sync (GitHub)</div>
+        <div id="sync-status" style="font-size:12.5px;color:#6b6b70;line-height:1.45">Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost grow" id="sync-btn">Einrichten</button>
+          <button class="btn ghost grow" id="sync-now" style="display:none">Jetzt syncen</button>
+          <button class="btn ghost grow" id="sync-off" style="display:none">Abmelden</button>
+        </div>
       </div>
     </div>
   </div>
@@ -821,7 +851,9 @@ function profilesGet(){
   }catch(e){return [];}
 }
 function profilesSet(a){ try{localStorage.setItem(PROFILES_KEY,JSON.stringify(a));}catch(e){} }
-function activeId(){ try{return localStorage.getItem(ACTIVE_KEY)||'';}catch(e){return '';} }
+function activeId(){ try{var a=localStorage.getItem(ACTIVE_KEY)||'';
+  if(!a){ var ps=profilesGet(); if(ps.length){ a=ps[0].id; localStorage.setItem(ACTIVE_KEY,a); } }
+  return a;}catch(e){return '';} }
 function activeProfile(){ var a=profilesGet(),id=activeId(); for(var i=0;i<a.length;i++){ if(a[i].id===id)return a[i]; } return null; }
 function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,20)||'kind'; }
 function ensureDefaultProfile(){
@@ -2843,11 +2875,42 @@ function renderPwBtn(){
   } else b.textContent='🔐 Passwortschutz aktivieren';
 }
 if($('pw-btn'))$('pw-btn').addEventListener('click',function(){ setPwFlow(activeId()); });
+/* ---------- Einstellungs-Tabs ---------- */
+function setTab(name){
+  Array.prototype.forEach.call(document.querySelectorAll('.set-tab'),function(t){
+    t.classList.toggle('sel',t.getAttribute('data-stab')===name);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.set-pane'),function(p){
+    p.style.display=(p.id==='stab-'+name)?'block':'none';
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll('.set-tab'),function(t){
+  t.addEventListener('click',function(){ setTab(t.getAttribute('data-stab')); });
+});
+/* ---------- Emoji-Picker-Modal ---------- */
+var EMOJI_CHOICES=['😊','😎','🤓','🦊','🐼','🦁','🐯','🐨','🐸','🦄','🐙','🦖','🚀','⚽','🏀','🎮','🎸','🌟','🌈','🍕','🍦','🎯','🏆','👑'];
+function pickEmoji(current,cb){
+  var old=document.getElementById('emomodal'); if(old)old.remove();
+  var el=document.createElement('div'); el.id='emomodal';
+  el.style.cssText='position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px';
+  var h='<div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.3)">'+
+    '<div style="font-weight:800;font-size:1.05rem;margin-bottom:10px">Wähle dein Emoji</div>'+
+    '<div class="emopick">';
+  EMOJI_CHOICES.forEach(function(e){
+    h+='<button data-emo="'+e+'"'+(e===current?' class="sel"':'')+'>'+e+'</button>';
+  });
+  h+='</div><div style="display:flex;gap:8px;margin-top:14px"><button id="emo-cancel" style="flex:1;padding:11px;border:1px solid #d9d9de;border-radius:11px;background:#fff;color:#3a3a3c;font-size:14px">Abbrechen</button></div></div>';
+  el.innerHTML=h;
+  document.body.appendChild(el);
+  Array.prototype.forEach.call(el.querySelectorAll('.emopick button'),function(b){
+    b.addEventListener('click',function(){ var m=document.getElementById('emomodal'); if(m)m.remove(); cb(b.getAttribute('data-emo')); });
+  });
+  el.querySelector('#emo-cancel').onclick=function(){ el.remove(); cb(null); };
+}
 function addProfileFlow(){
   var name=prompt('Name des neuen Lerners:');
   if(!name||!name.trim())return;
   name=name.trim().slice(0,20);
-  var emo=prompt('Emoji wählen (z.B. 🦊):','🦊')||'😊';
   /* Cloud-Dateiname automatisch aus dem Namen; Name muss eindeutig sein */
   var transl=String(name).toLowerCase()
     .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
@@ -2863,11 +2926,14 @@ function addProfileFlow(){
       return;
     }
   }
-  var p={id:'p'+Date.now().toString(36), name:name, emoji:emo, suffix:suf};
-  a.push(p); profilesSet(a);
-  renderProfiles('prof-list');
-  switchProfile(p.id);
-  setTimeout(function(){ alert('☁️ Cloud-Datei: vokabelheld-'+suf+'.json'); },600);
+  pickEmoji('🦊',function(emo){
+    if(!emo)return;
+    var p={id:'p'+Date.now().toString(36), name:name, emoji:emo, suffix:suf};
+    var arr=profilesGet(); arr.push(p); profilesSet(arr);
+    renderProfiles('prof-list');
+    switchProfile(p.id);
+    setTimeout(function(){ alert('☁️ Cloud-Datei: vokabelheld-'+suf+'.json'); },600);
+  });
 }
 function deleteProfileFlow(){
   var p=activeProfile(); if(!p)return;
