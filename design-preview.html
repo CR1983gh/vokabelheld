@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vokabel-Held — Design-Vorschau</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;background:#0e0e12;-webkit-font-smoothing:antialiased}
+.wrap{max-width:440px;margin:0 auto;padding:14px 14px 40px}
+.intro{color:#9a9aa6;font-size:.85rem;text-align:center;margin:8px 0 14px;line-height:1.5}
+.intro b{color:#e8e8f0}
+.themetabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;position:sticky;top:0;background:#0e0e12;z-index:5}
+.themetab{flex:0 0 auto;border:1.5px solid #2a2a34;background:#17171e;color:#b8b8c6;border-radius:999px;padding:9px 16px;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap}
+.themetab.on{background:#fff;color:#111;border-color:#fff}
+.phone{display:none;border-radius:28px;overflow:hidden;margin-bottom:26px;border:1px solid #26262f}
+.phone.on{display:block}
+.screen{padding:18px 16px 22px;min-height:640px}
+/* ============ THEME 1: Aurora Dark (Glassmorphism) ============ */
+.t-aurora{background:radial-gradient(120% 60% at 20% 0%,#1c2b5e 0%,transparent 60%),radial-gradient(100% 50% at 90% 10%,#4a1d6e 0%,transparent 55%),#0c0e1a;color:#eef0fa}
+.t-aurora .logo{font-size:1.5rem;font-weight:900;letter-spacing:-.03em;background:linear-gradient(90deg,#7dd3fc,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:4px}
+.t-aurora .sub{color:#8f93ad;font-size:.8rem;margin-bottom:16px}
+.t-aurora .glass{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);margin-bottom:12px}
+.t-aurora .stats{display:flex;gap:10px;margin-bottom:12px}
+.t-aurora .stat{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;text-align:center}
+.t-aurora .stat .n{font-size:1.5rem;font-weight:900;background:linear-gradient(180deg,#fff,#9db4ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.t-aurora .stat .l{font-size:.68rem;color:#8f93ad;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.t-aurora .cta{width:100%;border:none;border-radius:18px;padding:16px;font-size:1.05rem;font-weight:800;color:#fff;cursor:pointer;background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 60%,#d946ef 100%);box-shadow:0 10px 30px rgba(124,58,237,.45);letter-spacing:-.01em}
+.t-aurora .cta2{width:100%;border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:13px;font-size:.95rem;font-weight:700;color:#dfe3f5;cursor:pointer;background:rgba(255,255,255,.05);margin-top:8px}
+.t-aurora .brow{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;margin-bottom:8px}
+.t-aurora .bico{width:44px;height:56px;border-radius:10px;background:linear-gradient(160deg,#334155,#1e293b);display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.t-aurora .bt{flex:1;min-width:0}
+.t-aurora .bn{font-weight:800;font-size:.95rem}
+.t-aurora .bs{font-size:.72rem;color:#8f93ad;margin-top:2px}
+.t-aurora .pill{background:rgba(125,211,252,.15);color:#7dd3fc;border-radius:999px;font-size:.72rem;font-weight:800;padding:4px 10px}
+/* ============ THEME 2: Candy Pop (Duolingo-style) ============ */
+.t-candy{background:#fef6ec;color:#3d2c1e}
+.t-candy .logo{font-size:1.5rem;font-weight:900;letter-spacing:-.02em;color:#ff5a36;margin-bottom:4px}
+.t-candy .sub{color:#a3806a;font-size:.8rem;margin-bottom:16px}
+.t-candy .stats{display:flex;gap:10px;margin-bottom:12px}
+.t-candy .stat{flex:1;background:#fff;border-radius:20px;padding:12px;text-align:center;border-bottom:4px solid #ffe0c7}
+.t-candy .stat .n{font-size:1.5rem;font-weight:900;color:#ff5a36}
+.t-candy .stat .l{font-size:.68rem;color:#a3806a;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.t-candy .cta{width:100%;border:none;border-radius:16px;padding:16px;font-size:1.05rem;font-weight:900;color:#fff;cursor:pointer;background:#58cc02;border-bottom:5px solid #46a302;text-transform:uppercase;letter-spacing:.03em}
+.t-candy .cta:active{border-bottom-width:2px;transform:translateY(3px)}
+.t-candy .cta2{width:100%;border:none;border-radius:16px;padding:13px;font-size:.95rem;font-weight:900;color:#1cb0f6;cursor:pointer;background:#ddf4ff;border-bottom:5px solid #b8e6fb;margin-top:10px;text-transform:uppercase;letter-spacing:.03em}
+.t-candy .brow{display:flex;gap:12px;align-items:center;background:#fff;border-radius:18px;padding:12px;margin-bottom:10px;border-bottom:4px solid #eee1d2}
+.t-candy .bico{width:44px;height:56px;border-radius:10px;background:#fff3e3;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.t-candy .bt{flex:1;min-width:0}
+.t-candy .bn{font-weight:900;font-size:.95rem}
+.t-candy .bs{font-size:.72rem;color:#a3806a;margin-top:2px}
+.t-candy .pill{background:#e5f8d5;color:#4a9e00;border-radius:999px;font-size:.72rem;font-weight:900;padding:4px 10px}
+/* ============ THEME 3: Himmelblau Glass (Light) ============ */
+.t-sky{background:linear-gradient(180deg,#dbeeff 0%,#f2f9ff 40%,#ffffff 100%);color:#0f2a43}
+.t-sky .logo{font-size:1.5rem;font-weight:900;letter-spacing:-.03em;color:#0369a1;margin-bottom:4px}
+.t-sky .sub{color:#5b83a6;font-size:.8rem;margin-bottom:16px}
+.t-sky .stats{display:flex;gap:10px;margin-bottom:12px}
+.t-sky .stat{flex:1;background:rgba(255,255,255,.75);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(3,105,161,.12);border-radius:20px;padding:12px;text-align:center;box-shadow:0 8px 24px rgba(3,105,161,.08)}
+.t-sky .stat .n{font-size:1.5rem;font-weight:900;color:#0284c7}
+.t-sky .stat .l{font-size:.68rem;color:#5b83a6;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.t-sky .cta{width:100%;border:none;border-radius:18px;padding:16px;font-size:1.05rem;font-weight:800;color:#fff;cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#2563eb);box-shadow:0 10px 26px rgba(14,165,233,.35);letter-spacing:-.01em}
+.t-sky .cta2{width:100%;border:1.5px solid rgba(3,105,161,.25);border-radius:18px;padding:13px;font-size:.95rem;font-weight:700;color:#0369a1;cursor:pointer;background:rgba(255,255,255,.7);margin-top:8px}
+.t-sky .brow{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.8);border:1px solid rgba(3,105,161,.12);border-radius:18px;padding:12px;margin-bottom:8px;box-shadow:0 4px 14px rgba(3,105,161,.06)}
+.t-sky .bico{width:44px;height:56px;border-radius:10px;background:linear-gradient(160deg,#e0f2fe,#bae6fd);display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.t-sky .bt{flex:1;min-width:0}
+.t-sky .bn{font-weight:800;font-size:.95rem}
+.t-sky .bs{font-size:.72rem;color:#5b83a6;margin-top:2px}
+.t-sky .pill{background:#e0f2fe;color:#0369a1;border-radius:999px;font-size:.72rem;font-weight:800;padding:4px 10px}
+/* ============ THEME 4: Midnight Neon ============ */
+.t-neon{background:#05060a;color:#e8f0ff}
+.t-neon .logo{font-size:1.5rem;font-weight:900;letter-spacing:.02em;color:#22d3ee;text-shadow:0 0 18px rgba(34,211,238,.6);margin-bottom:4px}
+.t-neon .sub{color:#5c6580;font-size:.8rem;margin-bottom:16px}
+.t-neon .stats{display:flex;gap:10px;margin-bottom:12px}
+.t-neon .stat{flex:1;background:#0b0e16;border:1px solid #1b2233;border-radius:16px;padding:12px;text-align:center}
+.t-neon .stat .n{font-size:1.5rem;font-weight:900;color:#a3e635;text-shadow:0 0 14px rgba(163,230,53,.45)}
+.t-neon .stat .l{font-size:.68rem;color:#5c6580;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.t-neon .cta{width:100%;border:1px solid #22d3ee;border-radius:14px;padding:16px;font-size:1.05rem;font-weight:800;color:#05060a;cursor:pointer;background:#22d3ee;box-shadow:0 0 24px rgba(34,211,238,.5);text-transform:uppercase;letter-spacing:.06em}
+.t-neon .cta2{width:100%;border:1px solid rgba(163,230,53,.5);border-radius:14px;padding:13px;font-size:.95rem;font-weight:800;color:#a3e635;cursor:pointer;background:transparent;margin-top:8px;letter-spacing:.04em}
+.t-neon .brow{display:flex;gap:12px;align-items:center;background:#0b0e16;border:1px solid #1b2233;border-radius:14px;padding:12px;margin-bottom:8px}
+.t-neon .brow:hover{border-color:#22d3ee}
+.t-neon .bico{width:44px;height:56px;border-radius:8px;background:#11161f;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.t-neon .bt{flex:1;min-width:0}
+.t-neon .bn{font-weight:800;font-size:.95rem}
+.t-neon .bs{font-size:.72rem;color:#5c6580;margin-top:2px}
+.t-neon .pill{background:rgba(34,211,238,.12);color:#22d3ee;border-radius:999px;font-size:.72rem;font-weight:800;padding:4px 10px}
+/* ============ THEME 5: Paper Editorial ============ */
+.t-paper{background:#faf7f2;color:#23201b}
+.t-paper .logo{font-family:Georgia,"Times New Roman",serif;font-size:1.7rem;font-weight:700;color:#1c1917;margin-bottom:4px}
+.t-paper .sub{color:#8c8378;font-size:.8rem;margin-bottom:16px;font-style:italic}
+.t-paper .stats{display:flex;gap:10px;margin-bottom:12px}
+.t-paper .stat{flex:1;background:#fff;border:1px solid #e7e0d5;border-radius:6px;padding:12px;text-align:center}
+.t-paper .stat .n{font-family:Georgia,serif;font-size:1.6rem;font-weight:700;color:#b45309}
+.t-paper .stat .l{font-size:.66rem;color:#8c8378;text-transform:uppercase;letter-spacing:.12em;margin-top:2px}
+.t-paper .cta{width:100%;border:none;border-radius:6px;padding:16px;font-size:1rem;font-weight:700;color:#faf7f2;cursor:pointer;background:#1c1917;letter-spacing:.02em}
+.t-paper .cta2{width:100%;border:1px solid #d6ccbc;border-radius:6px;padding:13px;font-size:.95rem;font-weight:700;color:#57534e;cursor:pointer;background:transparent;margin-top:8px}
+.t-paper .brow{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #e7e0d5;border-radius:6px;padding:12px;margin-bottom:8px}
+.t-paper .bico{width:44px;height:56px;border-radius:4px;background:#f5efe6;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.t-paper .bt{flex:1;min-width:0}
+.t-paper .bn{font-family:Georgia,serif;font-weight:700;font-size:1rem}
+.t-paper .bs{font-size:.72rem;color:#8c8378;margin-top:2px}
+.t-paper .pill{background:#fef3c7;color:#92400e;border-radius:4px;font-size:.72rem;font-weight:800;padding:4px 10px}
+/* gemeinsame Mock-Komponenten */
+.mockcard{border-radius:22px;padding:26px 18px;text-align:center;margin:14px 0 10px}
+.t-aurora .mockcard{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
+.t-candy .mockcard{background:#fff;border:2px solid #f5e3cd;border-bottom-width:5px}
+.t-sky .mockcard{background:rgba(255,255,255,.85);border:1px solid rgba(3,105,161,.15);box-shadow:0 10px 30px rgba(3,105,161,.1)}
+.t-neon .mockcard{background:#0b0e16;border:1px solid #1b2233}
+.t-paper .mockcard{background:#fff;border:1px solid #e7e0d5;border-radius:8px}
+.mockword{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+.t-neon .mockword{color:#22d3ee;text-shadow:0 0 16px rgba(34,211,238,.5)}
+.t-candy .mockword{color:#58cc02}
+.t-sky .mockword{color:#0369a1}
+.t-paper .mockword{font-family:Georgia,serif}
+.mockhint{font-size:.75rem;opacity:.55;margin-top:6px}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.qbtn{min-height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;cursor:pointer;padding:8px;text-align:center}
+.t-aurora .qbtn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#e8ecff}
+.t-candy .qbtn{background:#fff;border:2px solid #f0ddc4;border-bottom-width:4px;color:#3d2c1e}
+.t-sky .qbtn{background:rgba(255,255,255,.85);border:1.5px solid rgba(3,105,161,.2);color:#0f2a43}
+.t-neon .qbtn{background:#0b0e16;border:1px solid #22d3ee44;color:#e8f0ff}
+.t-paper .qbtn{background:#fff;border:1px solid #ddd3c2;color:#23201b;border-radius:6px}
+.qbtn.good{background:#16a34a!important;color:#fff!important;border-color:#16a34a!important}
+.seclab{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;opacity:.5;margin:18px 0 8px;font-weight:800}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro"><b>Design-Vorschau</b> — 5 moderne Varianten für Vokabel-Held.<br>Nur Vorschau, die echte App ist unverändert. Auswahl einfach hier melden 🙂</div>
+  <div class="themetabs" id="tabs"></div>
+  <div id="phones"></div>
+</div>
+<script>
+var themes=[
+  {id:'t-aurora',name:'1 · Aurora Dark'},
+  {id:'t-candy',name:'2 · Candy Pop'},
+  {id:'t-sky',name:'3 · Himmelblau Glass'},
+  {id:'t-neon',name:'4 · Midnight Neon'},
+  {id:'t-paper',name:'5 · Paper Editorial'}
+];
+function mock(t){
+  return '<div class="screen '+t+'">'
+    +'<div class="logo">🦉 Vokabel-Held</div>'
+    +'<div class="sub">Tag 12 · 3-Tage-Serie 🔥</div>'
+    +'<div class="stats"><div class="stat"><div class="n">14</div><div class="l">heute fällig</div></div><div class="stat"><div class="n">86%</div><div class="l">Trefferquote</div></div><div class="stat"><div class="n">231</div><div class="l">im Langzeit</div></div></div>'
+    +'<button class="cta">⚡ 14 Vokabeln üben</button>'
+    +'<button class="cta2">📖 Grammatik-Quiz</button>'
+    +'<div class="seclab">Bücher</div>'
+    +'<div class="brow"><div class="bico">🏛️</div><div class="bt"><div class="bn">Campus C neu 1</div><div class="bs">Latein · 619 Wörter</div></div><div class="pill">14 fällig</div></div>'
+    +'<div class="brow"><div class="bico">🇬🇧</div><div class="bt"><div class="bn">Green Line 1</div><div class="bs">Englisch · 480 Wörter</div></div><div class="pill">6 fällig</div></div>'
+    +'<div class="seclab">Lernkarte</div>'
+    +'<div class="mockcard"><div class="mockword">serv-a</div><div class="mockhint">tippen zum Umdrehen</div></div>'
+    +'<div class="seclab">Quiz 2×2</div>'
+    +'<div class="qgrid"><div class="qbtn">die Sklavin</div><div class="qbtn good">die Sklavinnen</div><div class="qbtn">serv-us</div><div class="qbtn">serv-am</div></div>'
+    +'</div>';
+}
+var tabs=document.getElementById('tabs'), phones=document.getElementById('phones');
+themes.forEach(function(th,i){
+  var b=document.createElement('button'); b.className='themetab'+(i===0?' on':''); b.textContent=th.name;
+  b.onclick=function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.themetab'),function(x){x.classList.remove('on');});
+    Array.prototype.forEach.call(document.querySelectorAll('.phone'),function(x){x.classList.remove('on');});
+    b.classList.add('on'); document.getElementById('ph-'+th.id).classList.add('on');
+    window.scrollTo({top:0});
+  };
+  tabs.appendChild(b);
+  var p=document.createElement('div'); p.className='phone'+(i===0?' on':''); p.id='ph-'+th.id;
+  p.innerHTML=mock(th.id);
+  phones.appendChild(p);
+});
+</script>
+</body>
+</html>
