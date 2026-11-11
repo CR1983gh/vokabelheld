@@ -427,7 +427,8 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
 .pfl-row{display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid var(--hairline);border-radius:18px;padding:14px 16px;cursor:pointer;width:100%;text-align:left;font-family:inherit}
 .pfl-row:active{background:#f4f7fb}
 .pfl-row.cur{border-color:#0a66d6;background:#f3f8fe}
-.pfl-emoji{font-size:2rem;flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:#eef3fa;display:flex;align-items:center;justify-content:center}
+.pfl-emoji{font-size:2rem;flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:#eef3fa;display:flex;align-items:center;justify-content:center;position:relative}
+.pfl-lock{position:absolute;right:-3px;bottom:-3px;font-size:.85rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
 .pfl-txt{flex:1;min-width:0}
 .pfl-name{display:block;font-weight:800;font-size:1.05rem;color:var(--ink)}
 .pfl-sub{display:block;font-size:.75rem;color:var(--ink2);margin-top:2px}
@@ -470,8 +471,9 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <div id="prof-list" style="display:flex;flex-direction:column;gap:8px"></div>
       <div class="row" style="margin-top:10px">
         <button class="btn ghost grow" id="prof-add">＋ Neues Profil</button>
+        <button class="btn ghost grow" id="pw-btn">🔐 Passwortschutz aktivieren</button>
       </div>
-      <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist).</div>
+      <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist). Mit 🔐 ist das Profil nur mit Passwort wechselbar.</div>
     </div>
     <div class="card" style="margin-top:12px">
       <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">💾 Backup-Datei</div>
@@ -1257,7 +1259,7 @@ $('bd-reg').addEventListener('click',function(){
   }
   startLearn(true);
 });
-$('gear-btn').addEventListener('click',function(){ renderProfiles('prof-list'); renderBkInfo(); show('settings'); });
+$('gear-btn').addEventListener('click',function(){ renderProfiles('prof-list'); renderBkInfo(); renderPwBtn(); show('settings'); });
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 /* Report nur noch im Buch-Untermenue */
@@ -2703,7 +2705,7 @@ function renderProfiles(sel){
   a.forEach(function(p){
     var wc=profWordCount(p);
     h+='<button class="pfl-row'+(p.id===cur?' cur':'')+'" data-pid="'+p.id+'">'+
-      '<span class="pfl-emoji">'+(p.emoji||'😊')+'</span>'+
+      '<span class="pfl-emoji">'+(p.emoji||'😊')+(profHasPw(p.id)?'<span class="pfl-lock">🔒</span>':'')+'</span>'+
       '<span class="pfl-txt"><span class="pfl-name">'+esc(p.name)+'</span>'+
       '<span class="pfl-sub">'+(wc?wc+' Wörter':'noch leer')+(profHasSync(p)?' · ☁️ gesichert':' · 💾 nur lokal')+'</span></span>'+
       (p.id===cur?'<span class="pfl-check">✓</span>':'')+
@@ -2716,7 +2718,13 @@ function renderProfiles(sel){
 }
 function switchProfile(pid){
   if(pid===activeId()){ show('home'); return; }
-  /* aktuellen Stand sauber sichern, bevor wir den Key wechseln */
+  var target=null; profilesGet().forEach(function(p){ if(p.id===pid)target=p; });
+  if(target&&profHasPw(pid)&&!profUnlocked(pid)){ askPwUnlock(target); return; }
+  doSwitchProfile(pid);
+}
+function doSwitchProfile(pid){
+  UNLOCKED[pid]=true;
+  /* aktuellen Stand sauber sichern, bevor wir Key wechsle */
   try{ if(db){ db.meta={ts:Date.now()}; localStorage.setItem(LS,JSON.stringify(db)); bkGetNow(); } }catch(e){}
   try{localStorage.setItem(ACTIVE_KEY,pid);}catch(e){}
   applyKeys();
@@ -2729,6 +2737,88 @@ function switchProfile(pid){
   renderProfiles('prof-list'); renderBkInfo();
   show('home');
 }
+/* ---------- PIN-Schutz pro Profil (PBKDF2, nur Hash gespeichert) ---------- */
+var UNLOCKED={}; /* Session-Entsperrungen: pid -> true */
+function profPwKey(pid){ return 'vhPw:'+pid; }
+function profHasPw(pid){ return !!localStorage.getItem(profPwKey(pid)); }
+function profUnlocked(pid){ return !profHasPw(pid)||!!UNLOCKED[pid]; }
+function hashPw(pw,saltB64,iters){
+  var enc=new TextEncoder();
+  var salt=b64ToBytes(saltB64);
+  return crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveBits'])
+    .then(function(k){ return crypto.subtle.deriveBits({name:'PBKDF2',salt:salt,iterations:iters,hash:'SHA-256'},k,256); })
+    .then(function(bits){ return bytesToB64(new Uint8Array(bits)); });
+}
+function b64ToBytes(b){ var s=atob(b); var u=new Uint8Array(s.length); for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i); return u; }
+function bytesToB64(u){ var s=''; for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]); return btoa(s); }
+function setPwFlow(pid){
+  var p=activeProfile(); if(!p)return;
+  if(profHasPw(pid)){
+    if(!profUnlocked(pid)){ askPwUnlock(p); return; }
+    if(!confirm('Passwortschutz für „'+p.name+'“ entfernen?'))return;
+    localStorage.removeItem(profPwKey(pid));
+    renderProfiles('prof-list'); renderPwBtn();
+    alert('🔓 Passwortschutz entfernt.');
+    return;
+  }
+  askPwSet(p);
+}
+function pwModal(title,ph,cb){
+  var old=document.getElementById('pwmodal'); if(old)old.remove();
+  var el=document.createElement('div'); el.id='pwmodal';
+  el.style.cssText='position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px';
+  el.innerHTML='<div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.3)">'+
+    '<div style="font-weight:800;font-size:1.05rem;margin-bottom:10px">'+title+'</div>'+
+    '<input id="pw-in" type="password" inputmode="numeric" autocomplete="off" placeholder="'+ph+'" style="width:100%;padding:12px;border:1.5px solid #d9d9de;border-radius:11px;font-size:1.1rem;letter-spacing:2px;box-sizing:border-box">'+
+    '<div id="pw-err" style="color:#d70015;font-size:12.5px;min-height:16px;margin-top:6px"></div>'+
+    '<div style="display:flex;gap:8px;margin-top:8px"><button id="pw-ok" style="flex:1;padding:11px;border:0;border-radius:11px;background:#0a66d6;color:#fff;font-weight:700;font-size:14px">OK</button>'+
+    '<button id="pw-cancel" style="flex:1;padding:11px;border:1px solid #d9d9de;border-radius:11px;background:#fff;color:#3a3a3c;font-size:14px">Abbrechen</button></div></div>';
+  document.body.appendChild(el);
+  var inp=el.querySelector('#pw-in'); inp.focus();
+  function ok(){ var v=inp.value||''; cb(v,function(errMsg){ el.querySelector('#pw-err').textContent=errMsg; inp.select(); }); }
+  el.querySelector('#pw-ok').onclick=ok;
+  el.querySelector('#pw-cancel').onclick=function(){ el.remove(); };
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter')ok(); });
+}
+function askPwUnlock(p){
+  pwModal('🔒 '+esc(p.name)+' — Passwort','Passwort eingeben',function(v,fail){
+    var rec=localStorage.getItem(profPwKey(p.id));
+    if(!rec){ UNLOCKED[p.id]=true; var m=document.getElementById('pwmodal'); if(m)m.remove(); doSwitchProfile(p.id); return; }
+    var parts=rec.split(':');
+    hashPw(v,parts[0],parseInt(parts[1],10)).then(function(h){
+      if(h===parts[2]){
+        UNLOCKED[p.id]=true;
+        var m=document.getElementById('pwmodal'); if(m)m.remove();
+        if(currentView==='profiles') renderProfiles('pfl-list');
+        doSwitchProfile(p.id);
+      } else fail('❌ Falsches Passwort.');
+    }).catch(function(){ fail('⚠️ Fehler beim Prüfen (Browser ohne Krypto-API?).'); });
+  });
+}
+function askPwSet(p){
+  pwModal('🔐 Passwort für „'+esc(p.name)+'“ festlegen','Neues Passwort',function(v,fail){
+    if(v.length<4){ fail('Mindestens 4 Zeichen.'); return; }
+    pwModal('Passwort wiederholen','Nochmal eingeben',function(v2,fail2){
+      if(v!==v2){ fail2('Passwörter stimmen nicht überein.'); return; }
+      var salt=bytesToB64(crypto.getRandomValues(new Uint8Array(16))), iters=150000;
+      hashPw(v,salt,iters).then(function(h){
+        localStorage.setItem(profPwKey(p.id),salt+':'+iters+':'+h);
+        UNLOCKED[p.id]=true;
+        var m=document.getElementById('pwmodal'); if(m)m.remove();
+        renderProfiles('prof-list'); renderPwBtn();
+        alert('🔒 Passwort gesetzt! Wichtig: Merkt euch das Passwort — es kann nicht wiederhergestellt werden.');
+      });
+    });
+  });
+}
+function renderPwBtn(){
+  var b=$('pw-btn'); if(!b)return;
+  var p=activeProfile(); if(!p)return;
+  if(profHasPw(p.id)){
+    b.textContent=profUnlocked(p.id)?'🔓 Sperren (Passwort entfernen)':'🔒 Gesperrt — Passwort setzen/entsperren';
+  } else b.textContent='🔐 Passwortschutz aktivieren';
+}
+if($('pw-btn'))$('pw-btn').addEventListener('click',function(){ setPwFlow(activeId()); });
 function addProfileFlow(){
   var name=prompt('Name des neuen Lerners:');
   if(!name||!name.trim())return;
