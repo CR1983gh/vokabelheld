@@ -424,6 +424,14 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
 .themeopt.sel{border-color:#0a66d6;background:#f3f8fe}
 .themeopt.sel .tn::after{content:' ✓';color:#0a66d6}
 .tmini{display:block;height:64px;border-radius:10px;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.12)}
+.pfl-row{display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid var(--hairline);border-radius:18px;padding:14px 16px;cursor:pointer;width:100%;text-align:left;font-family:inherit}
+.pfl-row:active{background:#f4f7fb}
+.pfl-row.cur{border-color:#0a66d6;background:#f3f8fe}
+.pfl-emoji{font-size:2rem;flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:#eef3fa;display:flex;align-items:center;justify-content:center}
+.pfl-txt{flex:1;min-width:0}
+.pfl-name{display:block;font-weight:800;font-size:1.05rem;color:var(--ink)}
+.pfl-sub{display:block;font-size:.75rem;color:var(--ink2);margin-top:2px}
+.pfl-check{color:#0a66d6;font-weight:900;font-size:1.2rem}
 .tmini-card{position:absolute;left:8px;right:8px;top:8px;height:26px;border-radius:6px;background:rgba(255,255,255,.55);box-shadow:0 2px 6px rgba(0,0,0,.15)}
 .tmini-btn{position:absolute;left:8px;bottom:8px;width:55%;height:14px;border-radius:7px;background:rgba(0,0,0,.35)}
 .themeopt .tn{display:block}
@@ -458,6 +466,24 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <div id="theme-opts" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
     <div class="card" style="margin-top:12px">
+      <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">👥 Profile</div>
+      <div id="prof-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost grow" id="prof-add">＋ Neues Profil</button>
+      </div>
+      <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist).</div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">💾 Backup-Datei</div>
+      <div id="bk-info" class="small" style="margin-bottom:8px"></div>
+      <div class="row">
+        <button class="btn ghost grow" id="bk-export">⬇️ Backup speichern</button>
+        <button class="btn ghost grow" id="bk-import">⬆️ Backup laden</button>
+      </div>
+      <input type="file" id="bk-file" accept=".json,application/json" style="display:none">
+      <div class="small" style="margin-top:8px">Die Datei enthält alle Bücher und Lernstände dieses Profils — überlebt jeden Browser-Crash und ist übertragbar auf neue Geräte.</div>
+    </div>
+    <div class="card" style="margin-top:12px">
       <div style="font-size:13.5px;font-weight:600;margin-bottom:6px">☁️ Cloud-Sync (GitHub)</div>
       <div id="sync-status" style="font-size:12.5px;color:#6b6b70;line-height:1.45">Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.</div>
       <div class="row" style="margin-top:8px">
@@ -465,6 +491,16 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
         <button class="btn ghost grow" id="sync-now" style="display:none">Jetzt syncen</button>
         <button class="btn ghost grow" id="sync-off" style="display:none">Abmelden</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ PROFIL-AUSWAHL ============ -->
+  <div class="view" id="v-profiles">
+    <h1 class="logo" style="font-size:1.5rem;margin:26px 0 6px">Wer lernt heute?</h1>
+    <div class="small" style="text-align:center;margin-bottom:16px">Jedes Kind hat eigene Bücher, Stufen und Design.</div>
+    <div id="pfl-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost grow" id="pfl-add">＋ Neues Profil anlegen</button>
     </div>
   </div>
 
@@ -740,6 +776,65 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
 'use strict';
 (function(){
 var LS='vhData', LSB='vhBest';
+/* ===== Profil-System (mehrere Kinder, getrennte Daten) ===== */
+var PROFILES_KEY='vhProfiles', ACTIVE_KEY='vhActive';
+var THEME_KEY='vhTheme', BKKEY='main';
+var GS={tkey:'vhGistToken:main', ikey:'vhGistId:main', desc:'vh-sync:vokabelheld', file:'vokabelheld.json', dirty:false, busy:false, last:0};
+function profilesGet(){
+  try{
+    var a=JSON.parse(localStorage.getItem(PROFILES_KEY)||'[]');
+    if(!Array.isArray(a))a=[];
+    /* Migration: bestehende Alt-Daten (ohne Profile) -> Profil 1 retten */
+    if(!a.length){
+      var legacy=null;
+      try{ legacy=JSON.parse(localStorage.getItem('vhData')||'null'); }catch(e){}
+      var hasLegacy=!!(legacy&&legacy.books&&legacy.books.length)||
+        !!localStorage.getItem('vhGistToken')||!!localStorage.getItem('vhGistId')||
+        !!localStorage.getItem('vhTheme');
+      if(hasLegacy){
+        var p={id:'main',name:'Christoph',emoji:'⭐',suffix:''};
+        a.push(p);
+        try{
+          if(legacy&&legacy.books&&legacy.books.length)localStorage.setItem('vhData:main',JSON.stringify(legacy));
+          var t=localStorage.getItem('vhGistToken'); if(t)localStorage.setItem('vhGistToken:main',t);
+          var i=localStorage.getItem('vhGistId'); if(i)localStorage.setItem('vhGistId:main',i);
+          var th=localStorage.getItem('vhTheme'); if(th)localStorage.setItem('vhTheme:main',th);
+          var bkts=localStorage.getItem('vhBkFileTs'); if(bkts)localStorage.setItem('vhBkFileTs:main',bkts);
+        }catch(e){}
+        try{localStorage.setItem(ACTIVE_KEY,'main');}catch(e){}
+        localStorage.setItem(PROFILES_KEY,JSON.stringify(a));
+      }
+    }
+    return a;
+  }catch(e){return [];}
+}
+function profilesSet(a){ try{localStorage.setItem(PROFILES_KEY,JSON.stringify(a));}catch(e){} }
+function activeId(){ try{return localStorage.getItem(ACTIVE_KEY)||'';}catch(e){return '';} }
+function activeProfile(){ var a=profilesGet(),id=activeId(); for(var i=0;i<a.length;i++){ if(a[i].id===id)return a[i]; } return null; }
+function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,20)||'kind'; }
+function ensureDefaultProfile(){
+  var a=profilesGet();
+  if(a.length)return;
+  var p={id:'p'+Date.now().toString(36), name:'Mein Profil', emoji:'😊', suffix:''};
+  a.push(p); profilesSet(a);
+  /* vorhandene globale Daten ins erste Profil migrieren */
+  try{
+    var map={'vhData':'vhData:'+p.id,'vhBest':'vhBest:'+p.id,'vhTheme':'vhTheme:'+p.id,'vhGistToken':'vhGistToken:'+p.id,'vhGistId':'vhGistId:'+p.id};
+    Object.keys(map).forEach(function(k){ var v=localStorage.getItem(k); if(v!=null&&!localStorage.getItem(map[k])) localStorage.setItem(map[k],v); });
+  }catch(e){}
+  try{localStorage.setItem(ACTIVE_KEY,p.id);}catch(e){}
+}
+function applyKeys(){
+  var pid=activeId()||'default';
+  LS='vhData:'+pid; LSB='vhBest:'+pid;
+  THEME_KEY='vhTheme:'+pid; BKKEY='main:'+pid;
+  GS.tkey='vhGistToken:'+pid; GS.ikey='vhGistId:'+pid;
+  var prof=activeProfile();
+  if(prof&&prof.suffix){ GS.desc='vh-sync:vokabelheld:'+prof.suffix; GS.file='vokabelheld-'+prof.suffix+'.json'; }
+  else { GS.desc='vh-sync:vokabelheld'; GS.file='vokabelheld.json'; }
+}
+ensureDefaultProfile();
+applyKeys();
 var db=null;
 
 /* ---------- Hilfsfunktionen ---------- */
@@ -899,7 +994,7 @@ function bkPut(){
     db.meta={ts:Date.now()};
     var snap=JSON.stringify(db);
     bkDB().then(function(d){ if(!d)return;
-      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,'main'); }catch(e){}
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,BKKEY); }catch(e){}
     });
   }catch(e){}
 }
@@ -909,14 +1004,14 @@ function bkGetNow(){
     db.meta={ts:Date.now()};
     var snap=JSON.stringify(db);
     bkDB().then(function(d){ if(!d)return;
-      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,'main'); }catch(e){}
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').put(snap,BKKEY); }catch(e){}
     });
   }catch(e){}
 }
 function bkGet(){ return bkDB().then(function(d){ if(!d)return null;
   return new Promise(function(res){
     try{
-      var q=d.transaction('s').objectStore('s').get('main');
+      var q=d.transaction('s').objectStore('s').get(BKKEY);
       q.onsuccess=function(){ res(q.result||null); };
       q.onerror=function(){ res(null); };
     }catch(e){ res(null); }
@@ -1034,7 +1129,7 @@ function best(){try{return JSON.parse(localStorage.getItem(LSB)||'{}')||{};}catc
 function saveBest(o){try{localStorage.setItem(LSB,JSON.stringify(o));}catch(e){}}
 
 /* ---------- Ansichten ---------- */
-var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings','gram'];
+var views=['home','learn','timer','diktat','duel','editor','report','ws','book','tests','testedit','settings','gram','profiles'];
 var currentView='home';
 function show(v){
   currentView=v;
@@ -1162,7 +1257,7 @@ $('bd-reg').addEventListener('click',function(){
   }
   startLearn(true);
 });
-$('gear-btn').addEventListener('click',function(){show('settings');});
+$('gear-btn').addEventListener('click',function(){ renderProfiles('prof-list'); renderBkInfo(); show('settings'); });
 $('home-newset').addEventListener('click',function(){newBook();});
 $('home-editor').addEventListener('click',function(){show('editor');});
 /* Report nur noch im Buch-Untermenue */
@@ -2347,7 +2442,7 @@ try{
 }catch(e){}
 
 /* ---------- Cloud-Sync via GitHub Gist ---------- */
-var GS={tkey:'vhGistToken', ikey:'vhGistId', desc:'vh-sync:vokabelheld', file:'vokabelheld.json', dirty:false, busy:false, last:0};
+/* GS wird oben im Profil-System deklariert; Schluessel pro Profil via applyKeys() */
 function gsTok(){ try{return localStorage.getItem(GS.tkey)||'';}catch(e){return '';} }
 function gsId(){ try{return localStorage.getItem(GS.ikey)||'';}catch(e){return '';} }
 function gsStatus(msg){ var el=$('sync-status'); if(el)el.textContent=msg; }
@@ -2593,13 +2688,134 @@ function renameCampusCAlt(){
   });
   if(changed)save();
 }
+/* ---------- Profil-UI & Backup-Dateien ---------- */
+var EMOJIS=['😊','🦊','🐼','🦁','🐸','🦄','🐯','🐨','🚀','⚽','🎮','🌟'];
+function profWordCount(p){
+  try{ var raw=localStorage.getItem('vhData:'+p.id); if(!raw)return 0;
+    var d=JSON.parse(raw); return countWords(d);
+  }catch(e){ return 0; }
+}
+function profHasSync(p){ try{ return !!(localStorage.getItem('vhGistToken:'+p.id)&&localStorage.getItem('vhGistId:'+p.id)); }catch(e){ return false; } }
+function renderProfiles(sel){
+  var box=$(sel); if(!box)return;
+  var a=profilesGet(), cur=activeId();
+  var h='';
+  a.forEach(function(p){
+    var wc=profWordCount(p);
+    h+='<button class="pfl-row'+(p.id===cur?' cur':'')+'" data-pid="'+p.id+'">'+
+      '<span class="pfl-emoji">'+(p.emoji||'😊')+'</span>'+
+      '<span class="pfl-txt"><span class="pfl-name">'+esc(p.name)+'</span>'+
+      '<span class="pfl-sub">'+(wc?wc+' Wörter':'noch leer')+(profHasSync(p)?' · ☁️ gesichert':' · 💾 nur lokal')+'</span></span>'+
+      (p.id===cur?'<span class="pfl-check">✓</span>':'')+
+      '</button>';
+  });
+  box.innerHTML=h;
+  Array.prototype.forEach.call(box.querySelectorAll('.pfl-row'),function(b){
+    b.addEventListener('click',function(){ switchProfile(b.getAttribute('data-pid')); });
+  });
+}
+function switchProfile(pid){
+  if(pid===activeId()){ show('home'); return; }
+  /* aktuellen Stand sauber sichern, bevor wir den Key wechseln */
+  try{ if(db){ db.meta={ts:Date.now()}; localStorage.setItem(LS,JSON.stringify(db)); bkGetNow(); } }catch(e){}
+  try{localStorage.setItem(ACTIVE_KEY,pid);}catch(e){}
+  applyKeys();
+  BK.ready=false;
+  load();
+  try{ applyTheme(localStorage.getItem(THEME_KEY)||''); }catch(e){}
+  gsButtons();
+  if(gsTok()&&gsId()){ gsStatus('☁️ Sync aktiv'); setTimeout(function(){ gsPull(false); },800); }
+  else gsStatus('Kein Sync eingerichtet. Deine Daten liegen nur auf diesem Gerät.');
+  renderProfiles('prof-list'); renderBkInfo();
+  show('home');
+}
+function addProfileFlow(){
+  var name=prompt('Name des neuen Lerners:');
+  if(!name||!name.trim())return;
+  name=name.trim().slice(0,20);
+  var emo=prompt('Emoji wählen (z.B. 🦊):','🦊')||'😊';
+  var suf=prompt('Kürzel für die Cloud-Datei (nur Buchstaben, z.B. max). Muss eindeutig sein:','')||'';
+  suf=slug(suf);
+  var a=profilesGet();
+  if(suf){ for(var i=0;i<a.length;i++){ if(a[i].suffix===suf){ alert('Kürzel „'+suf+'“ gibt es schon — bitte ein anderes wählen.'); return; } } }
+  var p={id:'p'+Date.now().toString(36), name:name, emoji:emo, suffix:suf};
+  a.push(p); profilesSet(a);
+  renderProfiles('prof-list');
+  switchProfile(p.id);
+}
+function renderBkInfo(){
+  var el=$('bk-info'); if(!el)return;
+  var p=activeProfile();
+  var last=0; try{ last=parseInt(localStorage.getItem('vhBkFileTs:'+(p?p.id:''))||'0',10); }catch(e){}
+  var txt='Profil: <b>'+esc(p?p.name:'—')+'</b> · '+countWords(db)+' Wörter';
+  if(last){ var days=Math.floor((Date.now()-last)/86400000);
+    txt+='<br>Letzter Datei-Backup: '+new Date(last).toLocaleDateString('de-DE')+' '+(days>=7?'<b style="color:#d70015">— bitte erneuern!</b>':''); }
+  else txt+='<br><b style="color:#d70015">Noch keine Backup-Datei erstellt.</b>';
+  el.innerHTML=txt;
+}
+function bkExportFile(){
+  var p=activeProfile(); if(!p)return;
+  db.meta={ts:Date.now()};
+  var payload={app:'vokabelheld',kind:'backup',profile:{name:p.name,emoji:p.emoji,suffix:p.suffix},data:db};
+  var blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  var d=new Date(), pad=function(n){return (n<10?'0':'')+n;};
+  var fname='vokabelheld-'+(p.suffix||slug(p.name))+'-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },2000);
+  try{ localStorage.setItem('vhBkFileTs:'+p.id,String(Date.now())); }catch(e){}
+  renderBkInfo();
+}
+function bkImportFile(file){
+  var rd=new FileReader();
+  rd.onload=function(){
+    var obj; try{ obj=JSON.parse(rd.result); }catch(e){ alert('Datei konnte nicht gelesen werden (kein gültiges JSON).'); return; }
+    var data=obj&&obj.kind==='backup'?obj.data:obj;
+    if(!data||!Array.isArray(data.books)){ alert('Keine Vokabelheld-Daten in der Datei gefunden.'); return; }
+    if(!confirm('Backup laden und aktuellen Stand dieses Profils ERSETZEN?\n('+countWords(data)+' Wörter, '+(obj.profile?('Profil „'+obj.profile.name+'“'):'unbekannt')+')'))return;
+    db=data; ensure(); BK.ready=true; save();
+    try{ localStorage.setItem('vhBkFileTs:'+(activeId()||''),String(Date.now())); }catch(e){}
+    renderHome(); renderBkInfo();
+    alert('✅ Backup geladen: '+countWords(db)+' Wörter in '+db.books.length+' Büchern.');
+  };
+  rd.readAsText(file);
+}
+if($('prof-add'))$('prof-add').addEventListener('click',addProfileFlow);
+if($('pfl-add'))$('pfl-add').addEventListener('click',addProfileFlow);
+if($('bk-export'))$('bk-export').addEventListener('click',bkExportFile);
+if($('bk-import'))$('bk-import').addEventListener('click',function(){ $('bk-file').click(); });
+if($('bk-file'))$('bk-file').addEventListener('change',function(){ if(this.files&&this.files[0]){ bkImportFile(this.files[0]); this.value=''; } });
+/* Backup-Erinnerung: alle 7 Tage, wenn keine Datei existiert/veraltet ist */
+function bkFileReminder(){
+  var p=activeProfile(); if(!p||!countWords(db))return;
+  var last=0; try{ last=parseInt(localStorage.getItem('vhBkFileTs:'+p.id)||'0',10); }catch(e){}
+  if(last&&Date.now()-last<7*86400000)return;
+  var remindKey='vhBkNag:'+p.id;
+  var lastNag=0; try{ lastNag=parseInt(localStorage.getItem(remindKey)||'0',10); }catch(e){}
+  if(lastNag&&Date.now()-lastNag<2*86400000)return; /* max alle 2 Tage nerven */
+  try{localStorage.setItem(remindKey,String(Date.now()));}catch(e){}
+  var el=document.getElementById('bkbar');
+  if(!el){
+    el=document.createElement('div'); el.id='bkbar';
+    el.style.cssText='position:fixed;left:10px;right:10px;bottom:calc(64px + env(safe-area-inset-bottom));z-index:998;background:#fff;border:1.5px solid #30d158;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);font-size:13.5px;line-height:1.45';
+    document.body.appendChild(el);
+  }
+  el.innerHTML='<b>💾 Backup-Datei fällig</b><br>Letzter Datei-Backup ist älter als 7 Tage (oder nie erstellt).<div style="display:flex;gap:8px;margin-top:10px"><button id="bk-yes" style="flex:1;padding:10px;border:0;border-radius:11px;background:#30d158;color:#fff;font-weight:700;font-size:14px">Jetzt speichern</button><button id="bk-l8r" style="flex:1;padding:10px;border:1px solid #d9d9de;border-radius:11px;background:#fff;color:#3a3a3c;font-size:14px">Später</button></div>';
+  el.style.display='block';
+  document.getElementById('bk-yes').onclick=function(){ bkExportFile(); el.style.display='none'; };
+  document.getElementById('bk-l8r').onclick=function(){ el.style.display='none'; };
+}
 /* ---------- Start ---------- */
 load();
 splitCampusC();
 fixCampusCBands();
 renameCampusCAlt();
-show('home');
+if(profilesGet().length>1){ renderProfiles('pfl-list'); show('profiles'); }
+else show('home');
+renderBkInfo();
 tryRestoreBackup();
+setTimeout(bkFileReminder,4000);
 document.addEventListener('visibilitychange',function(){ if(document.hidden)bkGetNow(); else setTimeout(tryRestoreBackup,600); });
 window.addEventListener('pagehide',bkGetNow);
 })();
