@@ -144,7 +144,7 @@ select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden;font-size:.95re
 }
 .vcard.ok{border-color:var(--green);background:#f2fbf5}
 .vcard.bad{border-color:var(--red);background:#fdf3f4}
-.vword{font-size:2.2rem;font-weight:800;word-break:break-word;min-height:2.6rem;letter-spacing:-.02em;color:var(--ink)}
+.vword{font-size:2.2rem;font-weight:800;word-break:break-word;min-height:2.6rem;letter-spacing:-.02em;color:var(--ink);padding:0 46px;transition:font-size .15s}
 .levelbar{display:flex;gap:4px;justify-content:center;margin:12px 0 2px}
 .levelbar i{width:26px;height:8px;border-radius:6px;background:#e8e8ee}
 .levelbar i.on{background:var(--yellow)}
@@ -1456,6 +1456,25 @@ function startLearn(onlyDue,presetIdx){
   $('l-card').style.display='';
   renderLearn();
 }
+/* Wort-groesse auto anpassen, damit es die seitlichen Pfeile nicht ueberlappt */
+function fitWord(el){
+  if(!el)return;
+  el.style.fontSize='';
+  var max=parseFloat(getComputedStyle(el).fontSize)||35;
+  var avail=el.clientWidth;
+  if(avail<=0)return;
+  /* Mess-Div mit gleichem Style */
+  var probe=document.createElement('span');
+  probe.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font-weight:800;letter-spacing:-.02em;font-size:'+max+'px';
+  probe.textContent=el.textContent;
+  document.body.appendChild(probe);
+  var w=probe.offsetWidth;
+  document.body.removeChild(probe);
+  if(w>avail){
+    var fs=Math.max(18,Math.floor(max*avail/w));
+    el.style.fontSize=fs+'px';
+  }
+}
 function renderLearn(){
   if(!L)return;
   if(!L.queue.length){return learnEnd();}
@@ -1465,6 +1484,7 @@ function renderLearn(){
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
   $('l-word').textContent=p.w;
+  fitWord($('l-word'));
   $('l-hintline').textContent='';
   $('l-fb').innerHTML='';
   $('l-fb').className='fb';
