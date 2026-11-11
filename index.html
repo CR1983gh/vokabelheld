@@ -475,6 +475,13 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       </div>
       <div class="small" style="margin-top:8px">Jedes Profil hat eigene Bücher, Lernstände, Design und Cloud-Speicher (eigener Gist). Mit 🔐 ist das Profil nur mit Passwort wechselbar.</div>
     </div>
+    <div class="card" style="margin-top:12px;border:1.5px solid #ffd6d6">
+      <div style="font-size:13.5px;font-weight:700;color:#d70015;margin-bottom:8px">⚠️ Danger Zone</div>
+      <div class="small" style="margin-bottom:10px">Löscht das <b>aktive Profil</b> (<span id="dz-name">—</span>) mit allen Büchern und Lernständen von diesem Gerät. Empfohlen: vorher ein Backup speichern!</div>
+      <div class="row">
+        <button class="btn grow" id="dz-delete" style="background:#d70015;color:#fff;font-weight:700">🗑️ Dieses Profil löschen</button>
+      </div>
+    </div>
     <div class="card" style="margin-top:12px">
       <div style="font-size:13.5px;font-weight:600;margin-bottom:8px">💾 Backup-Datei</div>
       <div id="bk-info" class="small" style="margin-bottom:8px"></div>
@@ -2841,18 +2848,50 @@ function addProfileFlow(){
   if(!name||!name.trim())return;
   name=name.trim().slice(0,20);
   var emo=prompt('Emoji wählen (z.B. 🦊):','🦊')||'😊';
-  var suf=prompt('Kürzel für die Cloud-Datei (nur Buchstaben, z.B. max). Muss eindeutig sein:','')||'';
+  var suf=prompt('Kürzel für die Cloud-Datei (nur Buchstaben/Zahlen, z.B. max).\nJedes Profil braucht ein eigenes Kürzel — sonst teilt es sich die Cloud-Datei mit einem anderen Profil!','')||'';
   suf=slug(suf);
+  if(suf==='kind'||!/^[a-z0-9][a-z0-9-]*$/.test(suf)){
+    alert('Bitte ein gültiges Kürzel angeben (z.B. max, lisa, tim).');
+    return;
+  }
   var a=profilesGet();
-  if(suf){ for(var i=0;i<a.length;i++){ if(a[i].suffix===suf){ alert('Kürzel „'+suf+'“ gibt es schon — bitte ein anderes wählen.'); return; } } }
+  for(var i=0;i<a.length;i++){ if(a[i].suffix===suf){ alert('Kürzel „'+suf+'“ gibt es schon — bitte ein anderes wählen.'); return; } }
   var p={id:'p'+Date.now().toString(36), name:name, emoji:emo, suffix:suf};
   a.push(p); profilesSet(a);
   renderProfiles('prof-list');
   switchProfile(p.id);
 }
+function deleteProfileFlow(){
+  var p=activeProfile(); if(!p)return;
+  var wc=countWords(db);
+  /* Bestaetigung 1: alles verstanden? */
+  if(!confirm('⚠️ Profil „'+p.name+'“ WIRKLICH löschen?\n\n'+wc+' Wörter, alle Lernstände und Einstellungen auf diesem Gerät werden entfernt.\n(Auf GitHub/Cloud bleibt die Datei bis auf Weiteres erhalten.)'))return;
+  /* Bestaetigung 2: Name eintippen gegen Verseher */
+  var eingabe=prompt('Zum endgültigen Löschen bitte den Profilnamen „'+p.name+'“ eintippen:','');
+  if(eingabe===null)return;
+  if(eingabe.trim()!==p.name){ alert('❌ Name stimmt nicht — Löschen abgebrochen.'); return; }
+  /* alle lokalen Keys des Profils entfernen */
+  var pid=p.id;
+  try{
+    ['vhData:','vhBest:','vhTheme:','vhGistToken:','vhGistId:','vhBkFileTs:','vhPw:','vhBkNag:'].forEach(function(pre){
+      localStorage.removeItem(pre+pid);
+    });
+    bkDB().then(function(d){ if(!d)return;
+      try{ var tx=d.transaction('s','readwrite'); tx.objectStore('s').delete('main:'+pid); }catch(e){}
+    });
+    var a=profilesGet().filter(function(x){return x.id!==pid;});
+    profilesSet(a);
+    try{localStorage.removeItem(ACTIVE_KEY);}catch(e){}
+    UNLOCKED={};
+  }catch(e){ alert('Löschen fehlgeschlagen: '+e); return; }
+  /* App neu starten -> Profil-Auswahl oder leer */
+  location.reload();
+}
+if($('dz-delete'))$('dz-delete').addEventListener('click',deleteProfileFlow);
 function renderBkInfo(){
   var el=$('bk-info'); if(!el)return;
   var p=activeProfile();
+  var dz=$('dz-name'); if(dz&&p)dz.textContent=p.name;
   var last=0; try{ last=parseInt(localStorage.getItem('vhBkFileTs:'+(p?p.id:''))||'0',10); }catch(e){}
   var txt='Profil: <b>'+esc(p?p.name:'—')+'</b> · '+countWords(db)+' Wörter';
   if(last){ var days=Math.floor((Date.now()-last)/86400000);
