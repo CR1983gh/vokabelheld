@@ -45,9 +45,8 @@ body{
 #v-learn .flipwrap{flex:1;display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
 #l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--accent);padding:0 46px}
-.solgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;width:100%;max-width:420px}
-.solgrid span{text-align:center;-webkit-hyphens:auto;hyphens:auto;overflow-wrap:break-word;line-height:1.15}
-.solgrid span:only-child{grid-column:1 / -1}
+.solgrid{display:grid;grid-template-columns:1fr;gap:6px;width:100%}
+.solgrid span{text-align:center;overflow-wrap:break-word;line-height:1.2}
 #l-reveal{margin-top:auto}
 #v-learn .answerrow{margin-top:auto}
 h1.logo{font-size:1.7rem;text-align:center;margin:6px 0 16px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
@@ -1467,7 +1466,7 @@ function startLearn(onlyDue,presetIdx){
 /* Einheitliche Schriftgroesse pro Session: laengstes Wort der Queue wird gemessen,
    alle Karten bekommen dieselbe (ggf. kleinere) Groesse. */
 function fitSession(words){
-  var els=[[$('l-word'),1],[$('l-solution'),0.5]]; /* Faktor: Grid-Zellen = halbe Breite */
+  var els=[[$('l-word'),1],[$('l-solution'),1]];
   var minFs=null;
   els.forEach(function(pair){
     var el=pair[0], wf=pair[1];
@@ -1543,7 +1542,7 @@ $('l-reveal').addEventListener('click',function(){
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
   var ms=(p.m||[]).filter(function(x){return String(x).trim();});
-  if(ms.length>=3){
+  if(ms.length>=2){
     var g=document.createElement('div'); g.className='solgrid';
     ms.forEach(function(m){ var s=document.createElement('span'); s.textContent=m; g.appendChild(s); });
     $('l-solution').innerHTML=''; $('l-solution').appendChild(g);
