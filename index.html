@@ -2848,18 +2848,26 @@ function addProfileFlow(){
   if(!name||!name.trim())return;
   name=name.trim().slice(0,20);
   var emo=prompt('Emoji wählen (z.B. 🦊):','🦊')||'😊';
-  var suf=prompt('Kürzel für die Cloud-Datei (nur Buchstaben/Zahlen, z.B. max).\nJedes Profil braucht ein eigenes Kürzel — sonst teilt es sich die Cloud-Datei mit einem anderen Profil!','')||'';
-  suf=slug(suf);
-  if(suf==='kind'||!/^[a-z0-9][a-z0-9-]*$/.test(suf)){
-    alert('Bitte ein gültiges Kürzel angeben (z.B. max, lisa, tim).');
+  /* Cloud-Dateiname automatisch aus dem Namen; Name muss eindeutig sein */
+  var transl=String(name).toLowerCase()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
+  var suf=slug(transl);
+  if(suf==='kind'||!/^[a-z0-9]/.test(suf)){
+    alert('Der Name muss mindestens einen Buchstaben (a-z) enthalten — er wird als Cloud-Dateiname benutzt.');
     return;
   }
   var a=profilesGet();
-  for(var i=0;i<a.length;i++){ if(a[i].suffix===suf){ alert('Kürzel „'+suf+'“ gibt es schon — bitte ein anderes wählen.'); return; } }
+  for(var i=0;i<a.length;i++){
+    if(a[i].name.toLowerCase()===name.toLowerCase()||a[i].suffix===suf){
+      alert('„'+name+'“ gibt es schon (Cloud-Datei „vokabelheld-'+suf+'.json“ wäre belegt).\nBitte einen anderen Namen wählen, z.B. mit Nachname: „Max M.“');
+      return;
+    }
+  }
   var p={id:'p'+Date.now().toString(36), name:name, emoji:emo, suffix:suf};
   a.push(p); profilesSet(a);
   renderProfiles('prof-list');
   switchProfile(p.id);
+  setTimeout(function(){ alert('☁️ Cloud-Datei: vokabelheld-'+suf+'.json'); },600);
 }
 function deleteProfileFlow(){
   var p=activeProfile(); if(!p)return;
