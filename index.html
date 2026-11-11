@@ -1454,28 +1454,40 @@ function startLearn(onlyDue,presetIdx){
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
+  /* Einheitliche Schriftgroesse fuer die ganze Session (laengstes Wort = Mass) */
+  var allWords=[];
+  q.forEach(function(i){ var p=L.ws()[i]; if(p){ allWords.push(p.w); (p.m||[]).forEach(function(m){allWords.push(m);}); } });
+  fitSession(allWords);
   renderLearn();
 }
-/* Wort-groesse auto anpassen, damit es die seitlichen Pfeile nicht ueberlappt */
-function fitWord(el){
-  if(!el)return;
-  el.style.fontSize='';
-  var cs=getComputedStyle(el);
-  var max=parseFloat(cs.fontSize)||35;
-  /* clientWidth inkludiert Padding — nutzbare Breite = clientWidth - Padding */
-  var avail=el.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
-  if(avail<=0)return;
-  /* Mess-Div mit gleichem Style */
-  var probe=document.createElement('span');
-  probe.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font-weight:800;letter-spacing:-.02em;font-size:'+max+'px';
-  probe.textContent=el.textContent;
-  document.body.appendChild(probe);
-  var w=probe.offsetWidth;
-  document.body.removeChild(probe);
-  if(w>avail){
-    var fs=Math.max(16,Math.floor(max*avail/w));
-    el.style.fontSize=fs+'px';
-  }
+/* Einheitliche Schriftgroesse pro Session: laengstes Wort der Queue wird gemessen,
+   alle Karten bekommen dieselbe (ggf. kleinere) Groesse. */
+function fitSession(words){
+  var els=[$('l-word'),$('l-solution')];
+  var minFs=null;
+  els.forEach(function(el){
+    if(!el)return;
+    el.style.fontSize='';
+    var cs=getComputedStyle(el);
+    var max=parseFloat(cs.fontSize)||35;
+    var avail=el.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
+    if(avail<=0)return;
+    var widest=0;
+    var probe=document.createElement('span');
+    probe.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font-weight:800;letter-spacing:-.02em;font-size:'+max+'px';
+    document.body.appendChild(probe);
+    words.forEach(function(w){
+      probe.textContent=w;
+      if(probe.offsetWidth>widest)widest=probe.offsetWidth;
+    });
+    document.body.removeChild(probe);
+    if(widest>avail){
+      var fs=Math.max(15,Math.floor(max*avail/widest));
+      if(minFs===null||fs<minFs)minFs=fs;
+    }
+  });
+  var fs=minFs===null?'':minFs+'px';
+  els.forEach(function(el){ if(el)el.style.fontSize=fs; });
 }
 function renderLearn(){
   if(!L)return;
@@ -1486,7 +1498,6 @@ function renderLearn(){
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
   $('l-word').textContent=p.w;
-  fitWord($('l-word'));
   $('l-hintline').textContent='';
   $('l-fb').innerHTML='';
   $('l-fb').className='fb';
@@ -1527,7 +1538,6 @@ $('l-reveal').addEventListener('click',function(){
   this.style.display='none';
   $('l-solution').textContent=dispM(p);
   $('l-solution').style.display='';
-  fitWord($('l-solution'));
   $('l-knowrow').style.display='';
 });
 $('l-know').addEventListener('click',function(){ flipJudge(true); });
