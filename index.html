@@ -440,6 +440,12 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
 .emopick button{font-size:1.7rem;padding:8px 0;border:1.5px solid #e3e3e8;border-radius:12px;background:#fafafa;cursor:pointer;line-height:1.2}
 .emopick button:active{background:#e8f1fc}
 .emopick button.sel{border-color:#0a66d6;background:#e8f1fc;box-shadow:0 0 0 2px rgba(10,102,214,.25)}
+.ed-sec-title{font-size:13px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.ed-count{font-size:11px;font-weight:700;background:#eef3fa;color:#0a66d6;border-radius:10px;padding:2px 8px;text-transform:none}
+.btn.danger{color:#d70015}
+.danger-outline{border:1.5px solid #ffb3b3!important;color:#d70015!important}
+.preset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.preset{padding:12px 4px!important;line-height:1.35;font-weight:700;border-radius:12px}
 .tmini-card{position:absolute;left:8px;right:8px;top:8px;height:26px;border-radius:6px;background:rgba(255,255,255,.55);box-shadow:0 2px 6px rgba(0,0,0,.15)}
 .tmini-btn{position:absolute;left:8px;bottom:8px;width:55%;height:14px;border-radius:7px;background:rgba(0,0,0,.35)}
 .themeopt .tn{display:block}
@@ -746,67 +752,78 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
   <div class="view" id="v-editor">
     <div class="topbar">
       <button class="back" data-home>← Home</button>
-      <div class="title">✍️ Meine Vokabeln</div>
+      <div class="title">✍️ Bücher bearbeiten</div>
       <div style="width:64px"></div>
     </div>
     <div class="bookbar">📖 <select class="bookpick" id="ed-pick"></select></div>
-    <div class="card">
-      <div class="setrow">
-        <span>📚</span>
-        <input id="ed-setname" type="text" class="grow" placeholder="Buch-Name">
-        <select id="ed-lang" style="width:auto"></select>
+    <div class="set-tabs" id="ed-tabs" style="margin-top:12px">
+      <button class="set-tab sel" data-etab="words">📝 Wörter</button>
+      <button class="set-tab" data-etab="book">📚 Buch</button>
+      <button class="set-tab" data-etab="lib">📦 Vorlagen</button>
+    </div>
+    <!-- Tab: Woerter + Lektionen -->
+    <div class="set-pane" id="etab-words" style="display:block">
+      <div class="card">
+        <div class="ed-sec-title">📑 Lektion</div>
+        <div class="row">
+          <select id="ed-lesson" class="grow"></select>
+          <button class="btn ghost small" id="ed-addlesson">＋</button>
+          <button class="btn ghost small" id="ed-renlesson">✏️</button>
+          <button class="btn ghost small danger" id="ed-dellesson">🗑️</button>
+        </div>
       </div>
-      <div class="row" style="flex-wrap:wrap">
-        <button class="btn ghost small" id="ed-newset">Neues Buch</button>
-        <button class="btn red small" id="ed-delset">Buch löschen</button>
+      <div class="card">
+        <div class="ed-sec-title">📝 Wörter <span id="ed-count" class="ed-count"></span></div>
+        <div id="ed-list"></div>
+        <p class="small center" id="ed-empty" style="display:none;padding:18px 0">Noch keine Wörter in dieser Lektion.</p>
+        <button class="btn" id="ed-add" style="width:100%;margin-top:8px">＋ Wort hinzufügen</button>
       </div>
     </div>
-    <div class="card">
-      <div class="row" style="margin-bottom:6px">
-        <select id="ed-lesson" class="grow"></select>
-        <button class="btn ghost small" id="ed-addlesson">＋ Lektion</button>
+    <!-- Tab: Buch-Einstellungen -->
+    <div class="set-pane" id="etab-book" style="display:none">
+      <div class="card">
+        <div class="ed-sec-title">📚 Aktuelles Buch</div>
+        <div class="setrow">
+          <input id="ed-setname" type="text" class="grow" placeholder="Buch-Name">
+          <select id="ed-lang" style="width:auto"></select>
+        </div>
       </div>
-      <div class="row" style="flex-wrap:wrap">
-        <button class="btn small" id="ed-renlesson">✏️ Lektion umbenennen</button>
-        <button class="btn red small" id="ed-dellesson">Lektion löschen</button>
+      <div class="card">
+        <div class="ed-sec-title">Verwalten</div>
+        <div class="row" style="flex-direction:column;gap:8px">
+          <button class="btn ghost grow" id="ed-newset">＋ Neues Buch anlegen</button>
+          <button class="btn ghost grow danger-outline" id="ed-delset">🗑️ Dieses Buch löschen</button>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div id="ed-list"></div>
-      <p class="small center" id="ed-empty" style="display:none">Noch keine Wörter. Tippe auf „＋ Wort hinzufügen“.</p>
-      <button class="btn small" id="ed-add" style="width:100%;margin-top:6px">＋ Wort hinzufügen</button>
-    </div>
-    <div class="card">
-      <div class="row" style="margin-bottom:8px">
-        <button class="btn green small" id="ed-export">Sichern (.txt)</button>
-        <span class="small">Alle Bücher als Datei</span>
+    <!-- Tab: Vorlagen / Import / Export -->
+    <div class="set-pane" id="etab-lib" style="display:none">
+      <div class="card">
+        <div class="ed-sec-title">🏛️ Lehrbücher laden</div>
+        <div class="preset-grid">
+          <button class="btn green small preset" id="ed-campus">🏛️<br>Campus A</button>
+          <button class="btn green small preset" id="ed-ccneu1">🏛️<br>Campus C neu 1</button>
+          <button class="btn green small preset" id="ed-campusc1">🏛️<br>Campus C alt 1</button>
+          <button class="btn green small preset" id="ed-campusc2">🏛️<br>Campus C alt 2</button>
+          <button class="btn green small preset" id="ed-campusc3">🏛️<br>Campus C alt 3</button>
+          <button class="btn green small preset" id="ed-gl1">🟢<br>Green Line 1</button>
+          <button class="btn green small preset" id="ed-gl2">🟢<br>Green Line 2</button>
+          <button class="btn green small preset" id="ed-gl3">🟢<br>Green Line 3</button>
+          <button class="btn green small preset" id="ed-gl4">🟢<br>Green Line 4</button>
+          <button class="btn green small preset" id="ed-gl5">🟢<br>Green Line 5</button>
+          <button class="btn green small preset" id="ed-gl6">🟢<br>Green Line 6</button>
+          <button class="btn green small preset" id="ed-rl2">🔴<br>Red Line 2</button>
+        </div>
+        <div class="small" style="margin-top:8px">Bücher werden als neues Buch hinzugefügt — deine bestehenden bleiben erhalten.</div>
       </div>
-      <textarea id="ed-import" rows="4" placeholder="Sicherungs-Text hier einfügen …&#10;### Buchname [Sprache: Englisch]&#11;## Lektionsname&#10;word = Bedeutung 1; Bedeutung 2"></textarea>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn small grow" id="ed-importadd" style="min-width:140px">Importieren (als neue Bücher)</button>
-        <button class="btn red small grow" id="ed-importbtn" style="min-width:140px">Importieren (ersetzt alles)</button>
-      </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-campus" style="min-width:200px">🏛️ Campus A-Wortschatz laden</button>
-      </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-ccneu1" style="min-width:160px">🏛️ Campus C neu 1</button>
-      </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-campusc1" style="min-width:150px">🏛️ Campus C alt 1</button>
-        <button class="btn green small grow" id="ed-campusc2" style="min-width:150px">🏛️ Campus C alt 2</button>
-        <button class="btn green small grow" id="ed-campusc3" style="min-width:150px">🏛️ Campus C alt 3</button>
-      </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-gl1" style="min-width:100px">🟢 GL 1</button>
-        <button class="btn green small grow" id="ed-gl2" style="min-width:100px">🟢 GL 2</button>
-        <button class="btn green small grow" id="ed-gl3" style="min-width:100px">🟢 GL 3</button>
-        <button class="btn green small grow" id="ed-gl4" style="min-width:100px">🟢 GL 4</button>
-        <button class="btn green small grow" id="ed-gl5" style="min-width:100px">🟢 GL 5</button>
-        <button class="btn green small grow" id="ed-gl6" style="min-width:100px">🟢 GL 6</button>
-      </div>
-      <div class="row" style="margin-top:8px;flex-wrap:wrap">
-        <button class="btn green small grow" id="ed-rl2" style="min-width:160px">🔴 Red Line 2 Bayern</button>
+      <div class="card">
+        <div class="ed-sec-title">💾 Sichern & Importieren</div>
+        <button class="btn ghost" id="ed-export" style="width:100%;margin-bottom:10px">⬇️ Als Datei sichern (.txt)</button>
+        <textarea id="ed-import" rows="4" placeholder="Sicherungs-Text hier einfügen …&#10;### Buchname [Sprache: Englisch]&#11;## Lektionsname&#10;word = Bedeutung 1; Bedeutung 2"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn small grow" id="ed-importadd">Importieren (als neue Bücher)</button>
+          <button class="btn red small grow" id="ed-importbtn">Ersetzt alles</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2242,6 +2259,7 @@ function renderEd(){
   });
   /* Woerter der aktiven Lektion */
   var L=b.lessons[edLessonIdx()];
+  var cnt=$('ed-count'); if(cnt)cnt.textContent=L.pairs.length+' Wörter';
   var list=$('ed-list');
   list.innerHTML='';
   $('ed-empty').style.display=L.pairs.length?'none':'';
@@ -2881,7 +2899,19 @@ function setTab(name){
   });
 }
 Array.prototype.forEach.call(document.querySelectorAll('.set-tab'),function(t){
-  t.addEventListener('click',function(){ setTab(t.getAttribute('data-stab')); });
+  t.addEventListener('click',function(){ if(t.hasAttribute('data-stab')) setTab(t.getAttribute('data-stab')); });
+});
+/* Editor-Tabs (eigene Gruppe, data-etab) */
+function edTab(name){
+  Array.prototype.forEach.call(document.querySelectorAll('#ed-tabs .set-tab'),function(t){
+    t.classList.toggle('sel',t.getAttribute('data-etab')===name);
+  });
+  ['words','book','lib'].forEach(function(n){
+    var p=$('etab-'+n); if(p)p.style.display=(n===name)?'block':'none';
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll('#ed-tabs .set-tab'),function(t){
+  t.addEventListener('click',function(){ edTab(t.getAttribute('data-etab')); });
 });
 /* ---------- Emoji-Picker-Modal ---------- */
 var EMOJI_CHOICES=['😊','😎','🤓','🦊','🐼','🦁','🐯','🐨','🐸','🦄','🐙','🦖','🚀','⚽','🏀','🎮','🎸','🌟','🌈','🍕','🍦','🎯','🏆','👑'];
