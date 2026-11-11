@@ -547,6 +547,10 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     <div class="row" style="margin-top:14px">
       <button class="btn ghost grow" id="pfl-add">＋ Neues Profil anlegen</button>
     </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost grow" id="pfl-cloud" style="border-color:#0A84FF;color:#0A66D6">☁️ Profil aus Cloud wiederherstellen</button>
+    </div>
+    <div class="small" style="text-align:center;margin-top:6px;color:#8e8e93">Nach dem „Feuer"-Löschen hier einfach den GitHub-Token eingeben — Bücher &amp; Lernstände kommen zurück.</div>
   </div>
 
   <!-- ============ GRAMMATIK-TRAINING ============ -->
@@ -2593,7 +2597,9 @@ function cloudRescue(){
           for(var i=0;i<list.length;i++){
             var g=list[i];
             if(g.description===desc&&g.files&&g.files[file]){
-              return fetch(g.files[file].browser_download_url).then(function(r){return r.text();}).then(function(raw){
+              var gf=g.files[file];
+              var getRaw=gf.content!=null?Promise.resolve(gf.content):fetch(gf.raw_url,{headers:{Accept:'text/plain'}}).then(function(r){ if(!r.ok)throw 0; return r.text(); });
+              return getRaw.then(function(raw){
                 var obj; try{ obj=JSON.parse(raw); }catch(e){ return false; }
                 var pi=obj.profile||{};
                 var rdb=(obj.data&&obj.app)?obj.data:obj; /* altes Format: db direkt */
@@ -2615,6 +2621,78 @@ function cloudRescue(){
     });
   });
   return chain;
+}
+/* Cloud-Rescue aus explizitem Token (Fire hat auch Cookies geloescht).
+   Kernlogik extrahiert, wiederverwendet vom Cookie-Rescue und vom Button. */
+function rescueFromToken(tok){
+  if(!tok)return Promise.resolve(false);
+  var KNOWN_IDS=['853a30b8964b432ad2bfd799ad1772a0']; /* aelterer Sync-Gist */
+  function tryGist(g){
+    var cands=[];
+    Object.keys(g.files||{}).forEach(function(fn){
+      if(fn.indexOf('vokabelheld')===0)cands.push({g:g,file:fn});
+    });
+    if(!cands.length)return Promise.resolve(false);
+    var chain=Promise.resolve(false);
+    cands.forEach(function(c){
+      chain=chain.then(function(done){
+        if(done)return true;
+        var f=c.g.files[c.file];
+        /* Inhalt direkt aus API-Antwort nehmen (content-Feld); browser_download_url ist oft 404 ohne Auth */
+        var getRaw=f.content!=null?Promise.resolve(f.content):fetch(f.raw_url,{headers:{Accept:'text/plain'}}).then(function(r){ if(!r.ok)throw 0; return r.text(); });
+        return getRaw.then(function(raw){
+          var obj; try{ obj=JSON.parse(raw); }catch(e){ return false; }
+          var rdb=(obj.data&&obj.app)?obj.data:obj;
+          if(!rdb||!rdb.books&&!rdb.meta)return false;
+          var pi=obj.profile||{};
+          var suf=(c.file.replace(/^vokabelheld-?/,'').replace(/\.json$/,''))||'';
+          var name=pi.name||(suf?suf.charAt(0).toUpperCase()+suf.slice(1):'Cloud-Profil');
+          var p={id:'p'+Date.now().toString(36),name:name,emoji:pi.emoji||'☁️',suffix:pi.suffix||suf};
+          var a=profilesGet().filter(function(x){return x.suffix!==p.suffix;});
+          a.push(p); profilesSet(a);
+          try{localStorage.setItem(ACTIVE_KEY,p.id);}catch(e){}
+          applyKeys();
+          localStorage.setItem(GS.tkey,tok);
+          localStorage.setItem(GS.ikey,c.g.id);
+          db=rdb; ensure(); BK.ready=true; save();
+          ckTokenMirror();
+          return true;
+        }).catch(function(){ return false; });
+      });
+    });
+    return chain;
+  }
+  return fetch('https://api.github.com/gists?per_page=100',{headers:{Authorization:'Bearer '+tok,Accept:'application/vnd.github+json'}})
+    .then(function(r){ if(!r.ok)throw new Error('token'); return r.json(); })
+    .then(function(list){
+      var mine=(list||[]).filter(function(g){ return g.description&&g.description.indexOf('vh-sync:vokabelheld')===0; });
+      if(mine.length)return tryGist(mine[0]);
+      /* Token ohne Gist-List-Scope: direkt bekannte IDs versuchen */
+      var chain=Promise.resolve(false);
+      KNOWN_IDS.forEach(function(id){
+        chain=chain.then(function(done){
+          if(done)return true;
+          return fetch('https://api.github.com/gists/'+id,{headers:{Authorization:'Bearer '+tok,Accept:'application/vnd.github+json'}})
+            .then(function(r){ if(!r.ok)return false; return r.json(); })
+            .then(function(g){ return tryGist(g); })
+            .catch(function(){ return false; });
+        });
+      });
+      return chain;
+    }).catch(function(){ return false; });
+}
+function cloudRestoreFlow(){
+  var tok=prompt('GitHub-Token eingeben — dein Profil wird aus dem Cloud-Speicher geholt:');
+  if(!tok||!tok.trim()){ return; }
+  gsStatus('🔍 Suche Profil in der Cloud…');
+  rescueFromToken(tok.trim()).then(function(ok){
+    if(ok){
+      bootApp();
+      gsStatus('☁️ Profil aus Cloud wiederhergestellt ✓');
+    } else {
+      alert('Kein Vokabelheld-Profil mit diesem Token gefunden. Stimmt der Token? Wurde vorher synchronisiert?');
+    }
+  }).catch(function(){ alert('Cloud nicht erreichbar — bitte Internet prüfen.'); });
 }
 function gsStatus(msg){ var el=$('sync-status'); if(el)el.textContent=msg; }
 function gsButtons(){
@@ -2658,7 +2736,7 @@ function gsPull(force){
   GS.busy=true;
   return gsApi('/gists/'+gsId()).then(function(g){
     var f=g.files&&g.files[GS.file]; if(!f){GS.busy=false;return;}
-    return f.content!=null?f.content:fetch(f.browser_download_url).then(function(r){return r.text();});
+    return f.content!=null?f.content:fetch(f.raw_url,{headers:{Accept:'text/plain'}}).then(function(r){return r.text();});
   }).then(function(raw){
     GS.busy=false;
     if(!raw)return;
@@ -3156,6 +3234,7 @@ function bkImportFile(file){
 }
 if($('prof-add'))$('prof-add').addEventListener('click',addProfileFlow);
 if($('pfl-add'))$('pfl-add').addEventListener('click',addProfileFlow);
+if($('pfl-cloud'))$('pfl-cloud').addEventListener('click',cloudRestoreFlow);
 if($('bk-export'))$('bk-export').addEventListener('click',bkExportFile);
 if($('bk-import'))$('bk-import').addEventListener('click',function(){ $('bk-file').click(); });
 if($('bk-file'))$('bk-file').addEventListener('change',function(){ if(this.files&&this.files[0]){ bkImportFile(this.files[0]); this.value=''; } });
