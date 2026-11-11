@@ -3273,11 +3273,16 @@ function bootApp(){
   if(gsTok()&&gsId()){ setTimeout(function(){ gsPull(false); },1200); }
 }
 metaRestore().then(function(restored){
-  /* Fire-Szenario: IndexedDB + localStorage weg, aber Cookie-Token noch da -> Cloud-Rescue */
-  if(profilesGet().length===0 && /vh_tok_/.test(document.cookie)){
-    cloudRescue().then(function(ok){
+  /* Fire-Szenario: IndexedDB + localStorage weg, aber Cookie-Token noch da -> Auto-Cloud-Rescue */
+  var ckTok='';
+  try{
+    var mm=document.cookie.match(/vh_tok_([^=;]+)=([^;]+)/);
+    if(mm&&mm[2])ckTok=decodeURIComponent(mm[2]);
+  }catch(e){}
+  if(profilesGet().length===0 && ckTok){
+    rescueFromToken(ckTok).then(function(ok){
       bootApp();
-      if(ok)gsStatus('☁️ Profil aus Cloud wiederhergestellt');
+      if(ok)gsStatus('☁️ Profil automatisch aus Cloud geladen');
     }).catch(function(){ bootApp(); });
   } else bootApp();
 }).catch(function(){ bootApp(); });
