@@ -1,4 +1,4 @@
-### Latein neu 1 [Sprache: Latein]
+### C1 (neu) [Sprache: Latein]
 ## Lektion 1
 puella = das Maedchen
 serva = die Sklavin, die Dienerin
