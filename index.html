@@ -818,11 +818,7 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <div class="card">
         <div class="ed-sec-title">🏛️ Lehrbücher laden</div>
         <div class="preset-grid">
-          <button class="btn green small preset" id="ed-campus">🏛️<br>Latein A</button>
-          <button class="btn green small preset" id="ed-ccneu1">🏛️<br>Latein neu 1</button>
-          <button class="btn green small preset" id="ed-campusc1">🏛️<br>Latein C alt 1</button>
-          <button class="btn green small preset" id="ed-campusc2">🏛️<br>Latein C alt 2</button>
-          <button class="btn green small preset" id="ed-campusc3">🏛️<br>Latein C alt 3</button>
+          <button class="btn green small preset" id="ed-ccneu1">🏛️<br>C1 (neu)</button>
           <button class="btn green small preset" id="ed-gl1">🟢<br>Grün 1</button>
           <button class="btn green small preset" id="ed-gl2">🟢<br>Grün 2</button>
           <button class="btn green small preset" id="ed-gl3">🟢<br>Grün 3</button>
@@ -1371,7 +1367,7 @@ function renderBook(){
   $('bd-neu').textContent='Neue Vokabeln ('+nichtAktiv+')';
   $('bd-reg').textContent='Reguläre Übung ('+due+')';
   var gb=$('bd-grammatik');
-  if(gb)gb.style.display=/(Campus\s*C\s*neu|Latein\s*neu)/i.test(b.name)?'block':'none';
+  if(gb)gb.style.display=/(C1\s*\(neu\)|Latein\s*neu|Campus\s*C\s*neu)/i.test(b.name)?'block':'none';
 }
 $('bd-heute').addEventListener('click',function(){
   var ps=bookPool(set());
@@ -2587,7 +2583,7 @@ function doImport(mode){
   renderEd();renderHome();
 }
 function loadPreset(file,label,btn){
-  btn=btn||$('ed-campus');
+  btn=btn||$('ed-ccneu1');
   btn.disabled=true;btn.textContent='Lade …';
   fetch(file+'?v=2').then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -2601,12 +2597,8 @@ function loadPreset(file,label,btn){
     btn.disabled=false;btn.textContent=label;
   });
 }
-$('ed-campus').addEventListener('click',function(){loadPreset('campusA.txt','🏛️ Latein A laden',this);});
-$('ed-campusc1').addEventListener('click',function(){loadPreset('campusC1.txt','🏛️ Latein C alt 1',this);});
-$('ed-ccneu1').addEventListener('click',function(){loadPreset('campusCneu1.txt','🏛️ Latein neu 1',this);});
+$('ed-ccneu1').addEventListener('click',function(){loadPreset('campusCneu1.txt','🏛️ C1 (neu)',this);});
 $('ed-rl2').addEventListener('click',function(){loadPreset('redline2.txt','🔴 Rot 2',this);});
-$('ed-campusc2').addEventListener('click',function(){loadPreset('campusC2.txt','🏛️ Latein C alt 2',this);});
-$('ed-campusc3').addEventListener('click',function(){loadPreset('campusC3.txt','🏛️ Latein C alt 3',this);});
 [1,2,3,4,5,6].forEach(function(i){ $('ed-gl'+i).addEventListener('click',function(){loadPreset('greenline'+i+'.txt','🟢 Grün '+i,this);}); });
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
 $('ed-importadd').addEventListener('click',function(){doImport('add');});
@@ -3002,66 +2994,19 @@ function renameBooksPseudonym(){
     n=n.replace(/^Green\s*Line\s*(Bayern\s*)?(\d+)/i,'Grün $2');
     n=n.replace(/^GL\s*(\d+)/i,'Grün $1');
     n=n.replace(/^Red\s*Line\s*(\d+)\s*(Bayern)?/i,'Rot $1');
-    n=n.replace(/^Campus\s*C\s*neu/i,'Latein neu');
-    n=n.replace(/^Campus\s*C\s*alt/i,'Latein C alt');
-    n=n.replace(/^Campus\s*C\b/,'Latein C');
-    n=n.replace(/^Campus\s*A\b/,'Latein A');
+    n=n.replace(/^(Campus\s*C\s*neu|Latein\s*neu)\s*\d*(.*)$/i,'C1 (neu)$2');
     if(n!==b.name){ b.name=n; changed=true; }
   });
-  if(changed)save();
-}
-/* ---------- Campus-C-Aufteilung in 3 Bände ---------- */
-function splitCampusC(){
-  var idx=-1;
-  db.books.forEach(function(b,i){
-    if(/(Campus\s*C|Latein\s*C)/i.test(b.name)&&/I\s*[–-]\s*III/i.test(b.name))idx=i;
+  /* nicht mehr benoetigte Buecher entfernen: Campus A / Latein A / Campus C alt / Latein C (ohne 'neu') */
+  var before=db.books.length;
+  db.books=db.books.filter(function(b){
+    var n=b.name;
+    if(/^(Campus|Latein)\s*A\b/i.test(n))return false;
+    if(/^(Campus|Latein)\s*C\s*alt/i.test(n))return false;
+    if(/^(Campus|Latein)\s*C\b(?!\s*neu)/i.test(n))return false;
+    return true;
   });
-  if(idx<0)return;
-  var old=db.books[idx];
-  function num(l){var m=String(l.name).match(/(\d+)/);return m?parseInt(m[1],10):null;}
-  var bands=[{name:'Latein C alt 1 (Lekt. 1–40)',lessons:[]},{name:'Latein C alt 2 (Lekt. 41–76)',lessons:[]},{name:'Latein C alt 3 (Lekt. 77–104)',lessons:[]}];
-  var rest=[];
-  old.lessons.forEach(function(l){
-    var nm=String(l.name||'');
-    if(/^T-Training/i.test(nm)||/Anhang/i.test(nm)){ bands[2].lessons.push(l); return; } /* T-Training + Anhang -> Band 3 */
-    var n=num(l);
-    if(n!==null&&n>=1&&n<=40)bands[0].lessons.push(l);
-    else if(n!==null&&n>=41&&n<=76)bands[1].lessons.push(l);
-    else if(n!==null&&n>=77&&n<=104)bands[2].lessons.push(l);
-    else rest.push(l);
-  });
-  bands[2].lessons=bands[2].lessons.concat(rest);
-  bands=bands.filter(function(b){return b.lessons.length;});
-  bands.forEach(function(b){b.lang=old.lang;b.id=old.id+'-'+b.name;});
-  var args=[idx,1].concat(bands);
-  Array.prototype.splice.apply(db.books,args);
-  save();
-}
-function fixCampusCBands(){
-  /* Nachbesserung: T-Training/Anhang-Lektionen die (wegen frueheren Bugs) in Band 1/2 gelandet sind -> Band 3 */
-  var i3=-1;
-  db.books.forEach(function(b,i){ if(/(Campus\s*C|Latein\s*C)\s*(alt\s*)?3/.test(b.name))i3=i; });
-  if(i3<0)return;
-  var moved=0;
-  db.books.forEach(function(b,i){
-    if(i===i3||!/(Campus\s*C|Latein\s*C)\s*(alt\s*)?[12]/.test(b.name))return;
-    var keep=[];
-    b.lessons.forEach(function(l){
-      var nm=String(l.name||'');
-      if(/^T-Training/i.test(nm)||/Anhang/i.test(nm)){ db.books[i3].lessons.push(l); moved++; }
-      else keep.push(l);
-    });
-    b.lessons=keep;
-  });
-  if(moved)save();
-}
-function renameCampusCAlt(){
-  /* vorhandene Buecher 'Campus C 1/2/3 ...' -> 'Campus C alt 1/2/3 ...' */
-  var changed=false;
-  db.books.forEach(function(b){
-    if(/^Campus\s*C\s*(?!alt)([123])/.test(b.name)){ b.name=b.name.replace(/^(Campus\s*C\s*)([123])/,'$1alt $2'); changed=true; }
-    if(/^Latein\s*C\s*(?!alt|neu)([123])/.test(b.name)){ b.name=b.name.replace(/^(Latein\s*C\s*)([123])/,'$1alt $2'); changed=true; }
-  });
+  if(db.books.length!==before)changed=true;
   if(changed)save();
 }
 /* ---------- Profil-UI & Backup-Dateien ---------- */
@@ -3379,9 +3324,6 @@ function bkFileReminder(){
 function bootApp(){
   load();
   renameBooksPseudonym();
-  splitCampusC();
-  fixCampusCBands();
-  renameCampusCAlt();
   if(profilesGet().length!==1){ renderProfiles('pfl-list'); show('profiles'); }
   else show('home');
   renderBkInfo();
