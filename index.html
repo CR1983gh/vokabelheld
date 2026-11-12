@@ -1089,7 +1089,7 @@ function metaRestore(){
           try{
             if(!localStorage.getItem(PROFILES_KEY)&&m.profiles){ localStorage.setItem(PROFILES_KEY,m.profiles); restored=true; }
             if(!localStorage.getItem(ACTIVE_KEY)&&m.active){ localStorage.setItem(ACTIVE_KEY,m.active); restored=true; }
-            if(!localStorage.getItem(THEME_KEY)&&m.theme){ localStorage.setItem(THEME_KEY,m.theme); restored=true; }
+            if(localStorage.getItem(THEME_KEY)===null&&m.theme){ localStorage.setItem(THEME_KEY,m.theme); restored=true; }
             if(!gsTok()&&m.gistToken){ localStorage.setItem(GS.tkey,m.gistToken); restored=true; }
             if(!gsId()&&m.gistId){ localStorage.setItem(GS.ikey,m.gistId); restored=true; }
             if(m.bkFileTs)localStorage.setItem('vhBkFileTs:'+(activeId()||''),m.bkFileTs);
@@ -1167,7 +1167,6 @@ function tryRestoreBackup(){
 }
 var saveWarned=false;
 /* ===== Theme-System ===== */
-var THEME_KEY='vhTheme';
 var THEMES=[
   {id:'thm-zen',name:'Zen Bambus ⭐',desc:'Hauptdesign: Ruhe, Papiertextur, Serifen',sw:'linear-gradient(135deg,#f6f4ec,#3f5c3f)'},
   {id:'thm-candy',name:'Candy Pop',desc:'Spielerisch, fröhlich (Duolingo-Stil)',sw:'linear-gradient(135deg,#fef6ec,#58cc02)'},
@@ -1224,7 +1223,19 @@ function renderThemeOpts(){
     b.addEventListener('click',function(){applyTheme(b.getAttribute('data-thm'));});
   });
 }
-try{applyTheme(localStorage.getItem(THEME_KEY)||'thm-zen');}catch(e){}
+try{
+  /* Einmal-Migration auf Zen Bambus (Hauptdesign): Profile die noch nie ein Design waehlten
+     bzw. den alten Default '' hatten, bekommen Zen. Marker verhindert Ueberschreiben
+     spaeterer bewusster Wahl. */
+  var MIG='vhZenMigrated';
+  var savedThm=null; try{ savedThm=localStorage.getItem(THEME_KEY); }catch(e){}
+  var done=false; try{ done=!!localStorage.getItem(MIG); }catch(e){}
+  if(!done){
+    if(savedThm===null||savedThm==='') savedThm='thm-zen';
+    try{ localStorage.setItem(MIG,'1'); }catch(e){}
+  }
+  applyTheme(savedThm===null?'thm-zen':savedThm);
+}catch(e){}
 function save(){
   try{localStorage.setItem(LS,JSON.stringify(db));}
   catch(e){
