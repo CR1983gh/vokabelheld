@@ -1,4 +1,4 @@
-### Campus C – Wortschatz I–III [Sprache: Latein]
+### Latein C – Wortschatz I–III [Sprache: Latein]
 ## Kapitel 1
 avus = Großvater
 campus = Feld, freier Platz

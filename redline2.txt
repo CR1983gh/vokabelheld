@@ -1,4 +1,4 @@
-### Red Line 2 Bayern [Sprache: Englisch]
+### Rot 2 [Sprache: Englisch]
 ## Welcome back!
 summer = Sommer
 plane = Flugzeug

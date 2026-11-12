@@ -1,4 +1,4 @@
-### Campus C neu 1 [Sprache: Latein]
+### Latein neu 1 [Sprache: Latein]
 ## Lektion 1
 puella = das Maedchen
 serva = die Sklavin, die Dienerin

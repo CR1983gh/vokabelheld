@@ -1,4 +1,4 @@
-### Green Line Bayern 3 [Sprache: Englisch]
+### Grün 3 [Sprache: Englisch]
 ## Unit 1 | Check in
 personality = Persönlichkeit
 to disagree (with) = anderer Meinung sein; nicht einverstanden sein (mit)

@@ -1,4 +1,4 @@
-### Green Line Bayern 4 [Sprache: Englisch]
+### Grün 4 [Sprache: Englisch]
 ## Across cultures 1
 hallway = Flur; Diele; Korridor
 laboratory = Labor
