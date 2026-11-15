@@ -818,7 +818,6 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <div class="card">
         <div class="ed-sec-title">🏛️ Lehrbücher laden</div>
         <div class="preset-grid">
-          <button class="btn small preset" id="ed-a5" style="background:#fff;color:#1c1c1e;border:1.5px solid #8e8e93">⬜<br>A5</button>
           <button class="btn green small preset" id="ed-ccneu1">🏛️<br>C1 (neu)</button>
           <button class="btn green small preset" id="ed-gl1">🟢<br>Grün 1</button>
           <button class="btn green small preset" id="ed-gl2">🟢<br>Grün 2</button>
@@ -827,6 +826,7 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
           <button class="btn green small preset" id="ed-gl5">🟢<br>Grün 5</button>
           <button class="btn green small preset" id="ed-gl6">🟢<br>Grün 6</button>
           <button class="btn green small preset" id="ed-rl2">🔴<br>Rot 2</button>
+          <button class="btn green small preset" id="ed-a5">⚪<br>A5</button>
         </div>
         <div class="small" style="margin-top:8px">Bücher werden als neues Buch hinzugefügt — deine bestehenden bleiben erhalten.</div>
       </div>
@@ -2613,7 +2613,7 @@ function loadPreset(file,label,btn){
   });
 }
 $('ed-ccneu1').addEventListener('click',function(){loadPreset('campusCneu1.txt','🏛️ C1 (neu)',this);});
-$('ed-a5').addEventListener('click',function(){loadPreset('a5.txt','⬜ A5',this);});
+$('ed-a5').addEventListener('click',function(){loadPreset('a5.txt','⚪<br>A5',this);});
 $('ed-rl2').addEventListener('click',function(){loadPreset('redline2.txt','🔴 Rot 2',this);});
 [1,2,3,4,5,6].forEach(function(i){ $('ed-gl'+i).addEventListener('click',function(){loadPreset('greenline'+i+'.txt','🟢 Grün '+i,this);}); });
 $('ed-importbtn').addEventListener('click',function(){doImport('replace');});
