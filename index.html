@@ -2353,6 +2353,12 @@ function renderWs(){
     cb.addEventListener('change',function(){
       var ab=cb.dataset.ws.split(':');
       var p=b.lessons[parseInt(ab[0],10)].pairs[parseInt(ab[1],10)];
+      /* Löschschutz: bereits hinzugefügte Vokabeln erst nach Bestätigung raus */
+      if(!cb.checked&&p.akt!==false){
+        if(!confirm('Vokabel entfernen?\n\n„'+p.w+'“ wird aus dem Übungs-Pool genommen.\nDer Lernstand (Stufe, Fehler) bleibt erhalten — beim Reaktivieren ist er noch da.')){
+          cb.checked=true; return;
+        }
+      }
       p.akt=cb.checked; save();
       var lab=cb.closest('label'); if(lab)lab.classList.toggle('on',cb.checked);
       wsBadge(lab,p);
@@ -2362,6 +2368,15 @@ function renderWs(){
   Array.prototype.forEach.call($('ws-list').querySelectorAll('[data-wskap]'),function(cb){
     cb.addEventListener('change',function(){
       var li=parseInt(cb.dataset.wskap,10);
+      /* Löschschutz: ganzes Kapitel mit aktiven Wörtern erst nach Bestätigung raus */
+      if(!cb.checked){
+        var actCount=b.lessons[li].pairs.filter(function(p){return p.akt!==false;}).length;
+        if(actCount>0){
+          if(!confirm('Ganzes Kapitel entfernen?\n\n„'+b.lessons[li].name+'“: '+actCount+' bereits hinzugefügte'+(actCount===1?' Wort wird':' Wörter werden')+' aus dem Übungs-Pool genommen.\nDer Lernstand bleibt erhalten — beim Reaktivieren ist er noch da.')){
+            cb.checked=true; return;
+          }
+        }
+      }
       b.lessons[li].pairs.forEach(function(p,pi){
         p.akt=cb.checked;
         var w=$('ws-list').querySelector('[data-ws="'+li+':'+pi+'"]');
