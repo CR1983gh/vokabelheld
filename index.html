@@ -2600,18 +2600,39 @@ function doImport(mode){
 function loadPreset(file,label,btn){
   btn=btn||$('ed-ccneu1');
   btn.disabled=true;btn.textContent='Lade …';
-  fetch(file+'?v=2').then(function(r){
+  fetch(file+'.enc?v=2').then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.text();
+  }).then(function(blob){
+    return vhDecrypt(blob);
   }).then(function(txt){
     $('ed-import').value=txt;
     doImport('add');
   }).catch(function(e){
-    alert('Download fehlgeschlagen: '+e);
+    alert('Download/Entschlüsseln fehlgeschlagen: '+e);
   }).finally(function(){
     btn.disabled=false;btn.textContent=label;
   });
 }
+/* ---- VH1 encryption: PBKDF2-SHA256 + AES-GCM (WebCrypto) ----
+   Blob format: VH1.<b64 salt>.<b64 iv>.<b64 ciphertext>
+   Plaintext wordlists are no longer in the repo, only .enc ciphers. */
+var VH_PASS='SprvhVlAttqEz3SQr8CsKfqczbwiTsK0';
+function vhDecrypt(blob){
+  var parts=blob.split('.');
+  if(parts.length!==4||parts[0]!=='VH1')return Promise.reject(new Error('Format unbekannt'));
+  var salt=b64u(parts[1]),iv=b64u(parts[2]),ct=b64u(parts[3]);
+  var enc=new TextEncoder();
+  return crypto.subtle.importKey('raw',enc.encode(VH_PASS),'PBKDF2',false,['deriveKey'])
+   .then(function(bk){
+     return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:150000,hash:'SHA-256'},bk,{name:'AES-GCM',length:256},false,['decrypt']);
+   })
+   .then(function(key){
+     return crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);
+   })
+   .then(function(buf){ return new TextDecoder().decode(buf); });
+}
+function b64u(s){ var b=atob(s.replace(/-/g,'+').replace(/_/g,'/')); var a=new Uint8Array(b.length); for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i); return a; }
 $('ed-ccneu1').addEventListener('click',function(){loadPreset('campusCneu1.txt','🏛️ C1 (neu)',this);});
 $('ed-a5').addEventListener('click',function(){loadPreset('a5.txt','⚪<br>A5',this);});
 $('ed-rl2').addEventListener('click',function(){loadPreset('redline2.txt','🔴 Rot 2',this);});
@@ -2926,7 +2947,7 @@ document.addEventListener('visibilitychange',function(){ if(document.hidden){ if
 var GRAM=null;
 function loadGram(){
   if(GRAM) return Promise.resolve(GRAM);
-  return fetch('grammatik_data.json').then(function(r){return r.json();}).then(function(j){GRAM=j;return j;});
+  return fetch('grammatik_data.json.enc').then(function(r){return r.text();}).then(function(b){return vhDecrypt(b);}).then(function(txt){var j=JSON.parse(txt);GRAM=j;return j;});
 }
 function renderGramPicker(){
   loadGram().then(function(g){
