@@ -3005,6 +3005,8 @@ function renameBooksPseudonym(){
     n=n.replace(/^GL\s*(\d+)/i,'Grün $1');
     n=n.replace(/^Red\s*Line\s*(\d+)\s*(Bayern)?/i,'Rot $1');
     n=n.replace(/^(Campus\s*C\s*neu|Latein\s*neu)\s*\d*(.*)$/i,'C1 (neu)$2');
+    /* 'A5 Bayern' -> 'A5': keinen Lehrwerk-Bezug im Namen */
+    n=n.replace(/\s+Bayern\b/gi,'');
     if(n!==b.name){ b.name=n; changed=true; }
   });
   /* nicht mehr benoetigte Buecher entfernen: Campus A / Latein A / Campus C alt / Latein C (ohne 'neu') */
