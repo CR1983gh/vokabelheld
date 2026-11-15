@@ -3345,7 +3345,8 @@ function bootApp(){
   else show('home');
   renderBkInfo();
   tryRestoreBackup();
-  setTimeout(bkFileReminder,4000);
+  /* Backup-Popup-Erinnerung entfernt (Nutzer 2026-11): GitHub-Sync reicht;
+     manuelle Backup-Datei bleibt in den Einstellungen. bkFileReminder() wird nicht mehr aufgerufen. */
   /* wenn Sync konfiguriert: Cloud-Stand ziehen */
   if(gsTok()&&gsId()){ setTimeout(function(){ gsPull(false); },1200); }
 }
