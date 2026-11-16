@@ -667,7 +667,6 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       <button class="back" data-home>← Home</button>
       <div class="title">📚 Lernen</div>
       <div class="row" style="gap:4px">
-        <button class="btn ghost small" id="l-dir" title="Abfragerichtung wechseln" style="font-weight:800;min-width:86px">EN → DE</button>
         <button class="btn ghost small" id="l-mode" title="Modus wechseln">🔄</button>
         <button class="btn ghost small" id="l-hint">💡</button>
       </div>
@@ -1039,6 +1038,17 @@ function poolPairs(){
   return all.filter(function(p){return p.akt!==false;});
 }
 function poolCountTotal(){ var n=0;book().lessons.forEach(function(l){n+=l.pairs.length;}); return n; }
+/* Dualer Pool: jede Vokabel erscheint in BEIDEN Richtungen (eigene Stufe je Richtung) */
+function dualPairs(pairs){
+  var out=[];
+  pairs.forEach(function(p){
+    out.push({w:p.w,m:p.m,id:p.id+'_f',rev:false,orig:p});
+    out.push({w:p.w,m:p.m,id:p.id+'_r',rev:true,orig:p});
+  });
+  return out;
+}
+function dualPool(){ return dualPairs(poolPairs()); }
+function stV(v){ return stOf(v.orig,v.rev); }
 function dispM(p){return p.m.filter(function(x){return String(x).trim();}).join(' · ');}
 function isCorrect(val,p){
   var v=norm(val);
@@ -1335,9 +1345,9 @@ function renderHome(){
     return;
   }
   db.books.forEach(function(b,i){
-    var ps=bookPool(b);
-    var due=ps.filter(function(p){return !isLTM(p,DIR)&&isDue(p,DIR);}).length;
-    var ltm=ps.filter(function(p){return isLTM(p,DIR);}).length;
+    var ps=dualPairs(bookPool(b));
+    var due=ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length;
+    var ltm=ps.filter(function(v){return isLTM(v.orig,v.rev);}).length;
     var row=document.createElement('button');
     row.className='bookrow'+(i===db.aktiv?' eig':'');
     var ico=document.createElement('span');ico.className='bico';ico.textContent=langOf(b.lang).flag;
@@ -1350,7 +1360,7 @@ function renderHome(){
       stat.innerHTML='<span class="bdue">'+due+'</span><small>üben</small>';
     }else{
       var naechster=null;
-      ps.forEach(function(p){ if(isLTM(p,DIR))return; var d=dueAt(p,DIR); if(naechster===null||d<naechster)naechster=d; });
+      ps.forEach(function(v){ if(isLTM(v.orig,v.rev))return; var d=dueAt(v.orig,v.rev); if(naechster===null||d<naechster)naechster=d; });
       if(naechster===null){
         stat.innerHTML='<span class="bwait">🧠</span><small>fertig</small>';
       }else{
@@ -1380,8 +1390,8 @@ function openBook(i){
 }
 function renderBook(){
   var b=set(); if(!b)return;
-  var ps=bookPool(b);
-  var due=ps.filter(function(p){return !isLTM(p,DIR)&&isDue(p,DIR);}).length;
+  var ps=dualPairs(bookPool(b));
+  var due=ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length;
   $('bd-flag').textContent=langOf(b.lang).flag;
   $('bd-title').textContent=b.name;
   $('bd-sub').textContent=zuletztText(b);
@@ -1393,9 +1403,9 @@ function renderBook(){
   if(gb)gb.style.display=/(C1\s*\(neu\)|Latein\s*neu|Campus\s*C\s*neu)/i.test(b.name)?'block':'none';
 }
 $('bd-heute').addEventListener('click',function(){
-  var ps=bookPool(set());
+  var ps=dualPairs(bookPool(set()));
   if(!ps.length){show('ws');return;}
-  if(!ps.filter(function(p){return !isLTM(p,DIR)&&isDue(p,DIR);}).length){
+  if(!ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length){
     alert('🎉 Super! Heute ist alles gelernt.');return;
   }
   startLearn(true);
@@ -1404,9 +1414,9 @@ $('bd-report').addEventListener('click',function(){renderReport();show('report')
 $('bd-neu').addEventListener('click',function(){ renderWs(); show('ws'); });
 
 $('bd-reg').addEventListener('click',function(){
-  var ps=bookPool(set());
+  var ps=dualPairs(bookPool(set()));
   if(!ps.length){show('ws');return;}
-  if(!ps.filter(function(p){return !isLTM(p,DIR)&&isDue(p,DIR);}).length){
+  if(!ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length){
     alert('🎉 Super! Heute ist alles gelernt.');return;
   }
   startLearn(true);
@@ -1467,16 +1477,16 @@ function stopLearn(){L=null;}
 function markLearned(){ var b=set(); if(b){b.zl=Date.now();save();} }
 function startLearn(onlyDue,presetIdx){
   markLearned();
-  var ps=poolPairs();
+  var ps=dualPool();
   if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
-  var idx=presetIdx||ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i],DIR);});
+  var idx=presetIdx||ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i].orig,ps[i].rev);});
   if(!presetIdx&&!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln sitzen im Langzeitgedächtnis.');return;}
-  if(onlyDue&&!presetIdx){ idx=idx.filter(function(i){return isDue(ps[i],DIR);});
+  if(onlyDue&&!presetIdx){ idx=idx.filter(function(i){return isDue(ps[i].orig,ps[i].rev);});
     if(!idx.length){alert('🎉 Super! Heute ist alles gelernt.');return;} }
   /* Reihenfolge: niedrigste Stufe zuerst, dann aufsteigend; innerhalb gleicher Stufe zufaellig */
   var q=shuffle(idx);
-  q.sort(function(a,b){ return (stOf(ps[a],DIR).level||0)-(stOf(ps[b],DIR).level||0); });
-  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,test:null,hist:[],answered:{},ws:function(){return poolPairs();}};
+  q.sort(function(a,b){ return (stV(ps[a]).level||0)-(stV(ps[b]).level||0); });
+  L={queue:q,total:idx.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,test:null,hist:[],answered:{},ws:function(){return ps;}};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
@@ -1528,17 +1538,6 @@ function renderSolution(p,rev){
     $('l-solution').textContent=ms.join(' · ');
   }
 }
-function updateDirBtn(){
-  var b=$('l-dir'); if(!b)return;
-  b.textContent=DIR?'DE → EN':'EN → DE';
-  b.style.color=DIR?'#8e4ec6':'#ff7a00';
-}
-$('l-dir').addEventListener('click',function(){
-  if(L&&L.test){ if(!confirm('Richtung wechseln? Der laufende Test wird neu gestartet.'))return; }
-  DIR=!DIR; saveDir(); updateDirBtn();
-  if(L&&!L.test){ startLearn(false); return; }
-  if(L&&L.test){ var tn=L.test; L=null; var t=(bookTests()||[]).find(function(x){return x.name===tn;}); if(t)startTestSession(t); }
-});
 function renderLearn(){
   if(!L)return;
   if(!L.queue.length){return learnEnd();}
@@ -1547,7 +1546,7 @@ function renderLearn(){
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
-  $('l-word').textContent=promptOf(p,DIR);
+  $('l-word').textContent=promptOf(p,p.rev);
   $('l-hintline').textContent='';
   $('l-fb').innerHTML='';
   $('l-fb').className='fb';
@@ -1563,7 +1562,7 @@ function renderLearn(){
   /* Bereits beantwortetes Wort (via ◀ zurueck): Loesung sofort anzeigen */
   var answered=!!(L.answered&&L.answered[L.cur]);
   if(answered){
-    renderSolution(p,DIR);
+    renderSolution(p,p.rev);
     $('l-solution').style.display='';
     $('l-reveal').style.display='none';
     $('l-answerrow').style.display='none';
@@ -1576,9 +1575,8 @@ function renderLearn(){
   } else {
     L.review=false;
   }
-  renderLevelBar($('l-level'),stOf(p,DIR).level);
+  renderLevelBar($('l-level'),stV(p).level);
   updateLProg();
-  updateDirBtn();
   var pb=$('l-prev'); if(pb)pb.disabled=!(L.hist&&L.hist.length);
   if(!FLIP&&!answered) setTimeout(function(){try{inp.focus();}catch(e){}},60);
 }
@@ -1602,7 +1600,7 @@ $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
-  renderSolution(p,DIR);
+  renderSolution(p,p.rev);
   $('l-solution').style.display='';
   $('l-knowrow').style.display='';
 });
@@ -1618,13 +1616,13 @@ function flipJudge(right){
   $('l-knowrow').style.display='none';
   if(right){
     L.richtig++;
-    var up=L.test?false:levelUp(p,DIR);
-    if(!L.test)stOf(p,DIR).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
+    var up=L.test?false:levelUp(p.orig,p.rev);
+    if(!L.test)stV(p).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
     if(!L.test)save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p,DIR)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
+    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
     card.classList.add('ok','flashok');
-    renderLevelBar($('l-level'),stOf(p,DIR).level);
+    renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
     setTimeout(function(){
       if(!L)return;
@@ -1634,11 +1632,11 @@ function flipJudge(right){
     },700);
   }else{
     L.falsch++;
-    if(!L.test){levelDown(p,DIR);stOf(p,DIR).falsch++;save();}
+    if(!L.test){levelDown(p.orig,p.rev);stV(p).falsch++;save();}
     fb.className='fb bad';
     fb.innerHTML='Nicht gewusst 😖<span class="sub">'+esc(p.w)+' = '+esc(dispM(p))+'</span>';
     card.classList.add('bad','shake');
-    renderLevelBar($('l-level'),stOf(p,DIR).level);
+    renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
     L.queue.shift();
     var pos=Math.min(2,L.queue.length);
@@ -1657,7 +1655,7 @@ function renderLevelBar(el,lvl){
 }
 function updateLProg(){
   var ps=L.ws();
-  var sum=0;ps.forEach(function(p){sum+=(stOf(p,DIR).level||0);});
+  var sum=0;ps.forEach(function(p){sum+=(stV(p).level||0);});
   var avg=ps.length?(sum/ps.length):0;
   $('l-prog').textContent=L.done+'/'+L.total+' · Level Ø '+avg.toFixed(1);
 }
@@ -1666,7 +1664,7 @@ $('l-hint').addEventListener('click',function(){
   var p=L.ws()[L.cur];if(!p)return;
   L.hint=true;
   this.disabled=true;
-  var sol=solutionOf(p,DIR);
+  var sol=solutionOf(p,p.rev);
   $('l-hintline').textContent='Tipp: '+((sol[0]||'?')).charAt(0)+'…  (zählt nicht als richtig)';
 });
 $('l-in').addEventListener('keydown',function(e){if(e.key==='Enter')learnCheck();});
@@ -1687,7 +1685,7 @@ function learnCheck(){
   $('l-in').disabled=true;
   var card=$('l-card');
   var fb=$('l-fb');
-  var right=answerOk(val,p,DIR);
+  var right=answerOk(val,p,p.rev);
   L.hist.push({i:L.cur,right:right}); /* fuer Zurueck-Blaettern */
   L.answered[L.cur]=true;
   if(right&&L.hint){
@@ -1697,13 +1695,13 @@ function learnCheck(){
     card.classList.add('bad');
   }else if(right){
     L.richtig++;
-    var up=L.test?false:levelUp(p,DIR);
-    if(!L.test)stOf(p,DIR).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
+    var up=L.test?false:levelUp(p.orig,p.rev);
+    if(!L.test)stV(p).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
     if(!L.test)save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p,DIR)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
+    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
     card.classList.add('ok','flashok');
-    renderLevelBar($('l-level'),stOf(p,DIR).level);
+    renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
     setTimeout(function(){
       if(!L)return;
@@ -1714,11 +1712,11 @@ function learnCheck(){
     return;
   }else{
     L.falsch++;
-    if(!L.test){levelDown(p,DIR);stOf(p,DIR).falsch++;save();}
+    if(!L.test){levelDown(p.orig,p.rev);stV(p).falsch++;save();}
     fb.className='fb bad';
     fb.innerHTML='Leider daneben 😖<span class="sub">Richtig: '+esc(dispM(p))+' &nbsp;·&nbsp; Deine Eingabe: '+esc(val)+'</span>';
     card.classList.add('bad','shake');
-    renderLevelBar($('l-level'),stOf(p,DIR).level);
+    renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
     /* nach 2 anderen Karten zurück */
     L.queue.shift();
@@ -1745,9 +1743,9 @@ function learnEnd(){
   wireResult(r,startLearn);
 }
 function nextSpares(n){
-  var ps=poolPairs();
+  var ps=dualPool();
   var out=[];
-  ps.forEach(function(p,i){ if(!isLTM(p,DIR)&&!isDue(p,DIR))out.push([dueAt(p,DIR),i]); });
+  ps.forEach(function(p,i){ if(!isLTM(p.orig,p.rev)&&!isDue(p.orig,p.rev))out.push([dueAt(p.orig,p.rev),i]); });
   out.sort(function(a,b){return a[0]-b[0];});
   return out.slice(0,n).map(function(x){return x[1];});
 }
@@ -1759,9 +1757,9 @@ function stopTimer(){
 }
 function startTimer(){
   markLearned();
-  var ps=poolPairs();
+  var ps=dualPool();
   var idx=[];
-  ps.forEach(function(p,i){if((stOf(p,DIR).level||0)>=1&&!isLTM(p,DIR))idx.push(i);});
+  ps.forEach(function(p,i){if((stV(p).level||0)>=1&&!isLTM(p.orig,p.rev))idx.push(i);});
   if(!idx.length){alert('Im Zeitfresser sind nur Vokabeln ab Level 1 dabei. Erst mal im Lernen üben!');return;}
   stopTimer();
   T={queue:shuffle(idx),orig:idx.slice(),score:0,cur:null,lock:false,dead:false,
@@ -1792,7 +1790,7 @@ function nextTimerCard(){
   T.cur=i;T.lock=false;
   var card=$('t-card');
   card.classList.remove('bad','shake','flashok');
-  $('t-word').textContent=promptOf(p,DIR);
+  $('t-word').textContent=promptOf(p,p.rev);
   $('t-fb').innerHTML='';$('t-fb').className='fb';
   var inp=$('t-in');inp.disabled=false;inp.value='';
   setTimeout(function(){try{inp.focus();}catch(e){}},30);
@@ -1806,17 +1804,17 @@ function timerCheck(){
   T.lock=true;
   $('t-in').disabled=true;
   var card=$('t-card'),fb=$('t-fb');
-  if(answerOk(val,p,DIR)){
+  if(answerOk(val,p,p.rev)){
     T.score++;
-    levelUp(p,DIR);
+    levelUp(p.orig,p.rev);
     save();
     $('t-score').textContent='Punkte: '+T.score;
     fb.className='fb ok';fb.textContent='✅';
     card.classList.add('flashok');
     setTimeout(function(){if(T&&!T.dead)nextTimerCard();},200);
   }else{
-    levelDown(p,DIR);
-    stOf(p,DIR).falsch++;
+    levelDown(p.orig,p.rev);
+    stV(p).falsch++;
     save();
     fb.className='fb bad';    card.classList.add('bad','shake');
     setTimeout(function(){
@@ -2153,7 +2151,7 @@ $('ts-new').addEventListener('click',function(){ stampIds(); openTestEdit(null);
 function startTestSession(t){
   var all=allBookPairs();
   var map={}; all.forEach(function(x,i){map[x.p.id]=x.p;});
-  var ps=t.ids.map(function(id){return map[id];}).filter(Boolean);
+  var ps=dualPairs(t.ids.map(function(id){return map[id];}).filter(Boolean));
   if(!ps.length){alert('Der Test ist leer (Wörter wurden vielleicht gelöscht). Bearbeite ihn neu.');return;}
   markLearned();
   var q=shuffle(ps.map(function(_,i){return i;}));
@@ -2167,13 +2165,13 @@ function startTestSession(t){
 
 var RPT_SEL=null;
 function renderReport(){
-  var ps=poolPairs();
+  var ps=dualPool();
   var groups=[[],[],[],[],[],[],[],[]];
   var dueCount=0;
   ps.forEach(function(p){
-    var l=isLTM(p,DIR)?7:Math.max(0,Math.min(6,stOf(p,DIR).level||0));
+    var l=isLTM(p.orig,p.rev)?7:Math.max(0,Math.min(6,stV(p).level||0));
     groups[l].push(p);
-    if(l>0&&l<7&&isDue(p,DIR)) dueCount++;
+    if(l>0&&l<7&&isDue(p.orig,p.rev)) dueCount++;
   });
   var maxN=Math.max.apply(null,groups.map(function(g){return g.length;}).concat([1]));
   if(RPT_SEL===null||RPT_SEL<0||RPT_SEL>7){
@@ -2199,7 +2197,7 @@ function renderReport(){
     var onj=(j===sel);
     h+='<span style="flex:1;text-align:center;font-size:.72rem;font-weight:'+(onj?'800':'600')+';color:'+(onj?'#ff7a00':'#5d7494')+'">'+(j>=7?'🧠':j)+'</span>';
   }
-  h+='</div><p class="small center" style="margin:10px 0 0">'+ps.length+' Wörter im Pool · '+dueCount+' fällig zum Wiederholen · Richtung: '+(DIR?'DE → EN':'EN → DE')+'</p></div>';
+  h+='</div><p class="small center" style="margin:10px 0 0">'+(ps.length/2)+' Vokabeln × 2 Richtungen = '+ps.length+' Abfragen im Pool · '+dueCount+' fällig zum Wiederholen</p></div>';
   /* --- Tier + Text der gewaehlten Stufe --- */
   var TIERE=['🐣','🐥','🐢','🦊','🦁','🐉','🚀','🧠'];
   var g=groups[sel];
@@ -2218,8 +2216,8 @@ function renderReport(){
         h+='<span style="border:1px solid #d9c9f2;background:#f5eefe;border-radius:999px;padding:3px 10px;font-size:.82rem">🧠 '+esc(p.w)+' <b style="color:#33465c">'+esc(dispM(p))+'</b> <b class="ltm-back" data-i="'+ps.indexOf(p)+'" style="cursor:pointer;color:#8e4ec6;margin-left:4px" title="zurückholen">↩️</b></span>';
         return;
       }
-      var over = sel>0 && isDue(p,DIR);
-      var days = (!stOf(p,DIR).zuletzt||sel===0)?null:Math.floor((dueAt(p,DIR)-Date.now())/DAY);
+      var over = sel>0 && isDue(p.orig,p.rev);
+      var days = (!stV(p).zuletzt||sel===0)?null:Math.floor((dueAt(p.orig,p.rev)-Date.now())/DAY);
       h+='<span style="border:1px solid '+(over?'#d70015':'#e4e4e9')+';background:'+(over?'#fdf3f4':'#fafafc')+';border-radius:999px;padding:3px 10px;font-size:.82rem">'+esc(p.w)+'<b style="color:#33465c"> · '+esc(dispM(p))+'</b>'+(over?' ⏰':'')+(days!==null&&!over&&sel>=2?' <span style="color:#33465c">in '+days+'d</span>':'')+'</span>';
     });
     h+='</div>';
@@ -2234,7 +2232,7 @@ function renderReport(){
   Array.prototype.forEach.call($('r-body').querySelectorAll('.ltm-back'),function(b){
     b.addEventListener('click',function(){
       var p=ps[parseInt(b.dataset.i,10)]; if(!p)return;
-      var s2=stOf(p,DIR); s2.level=5; s2.zuletzt=Date.now()-30*DAY; save(); renderReport();
+      var s2=stV(p); s2.level=5; s2.zuletzt=Date.now()-30*DAY; save(); renderReport();
     });
   });
 }
@@ -2356,7 +2354,7 @@ function renderWs(){
       h+='<label class="wsrow'+(p.akt!==false?' on':'')+'" style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line,#f0f0f4);cursor:pointer">'
         +'<input type="checkbox" data-ws="'+li+':'+pi+'" '+(p.akt!==false?'checked':'')+' style="width:20px;height:20px;flex:none;accent-color:#1a8f4a">'
         +'<span style="flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4">'+esc(p.w)+' / <b>'+esc(dispM(p))+'</b></span>'
-        +(p.akt!==false?'<span class="small" style="flex:none">'+levelBadge(stOf(p,DIR).level)+'</span>':'')
+        +(p.akt!==false?'<span class="small" style="flex:none" title="EN→DE · DE→EN">'+levelBadge(p.level)+'·'+levelBadge((p.r2&&p.r2.level)||0)+'</span>':'')
         +'</label>';
     });
     h+='</div></div>';
@@ -2412,7 +2410,7 @@ function renderWs(){
 function wsBadge(lab,p){
   if(!lab)return;
   var badge=lab.querySelector('span.small');
-  if(p.akt!==false&&!badge){ var st=document.createElement('span'); st.className='small'; st.style.flex='none'; st.textContent=levelBadge(stOf(p,DIR).level); lab.appendChild(st); }
+  if(p.akt!==false&&!badge){ var st=document.createElement('span'); st.className='small'; st.style.flex='none'; st.textContent=levelBadge(p.level)+'·'+levelBadge((p.r2&&p.r2.level)||0); lab.appendChild(st); }
   if(p.akt===false&&badge)badge.remove();
 }
 function wsInfo(){
