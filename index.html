@@ -1548,6 +1548,10 @@ function renderLearn(){
     $('l-fb').className='fb';
     $('l-fb').innerHTML='<span style="font-size:.85rem;color:#8e8e93">Wiederholung — bereits beantwortet</span>';
     L.locked=true;
+    L.review=true;
+    $('l-next').style.display='';
+  } else {
+    L.review=false;
   }
   renderLevelBar($('l-level'),p.level);
   updateLProg();
@@ -1650,6 +1654,7 @@ $('l-hint').addEventListener('click',function(){
 $('l-in').addEventListener('keydown',function(e){if(e.key==='Enter')learnCheck();});
 $('l-next').addEventListener('click',function(){
   if(!L)return;
+  if(L.review){ L.queue.shift(); }
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
   renderLearn();
@@ -2135,7 +2140,7 @@ function startTestSession(t){
   markLearned();
   var q=shuffle(ps.map(function(_,i){return i;}));
   L={queue:q,total:ps.length,done:0,richtig:0,falsch:0,tips:0,cur:null,hint:false,locked:false,
-     test:t.name, ws:function(){return ps;}};
+     test:t.name,hist:[],answered:{},ws:function(){return ps;}};
   show('learn');
   $('l-result').style.display='none';
   $('l-card').style.display='';
