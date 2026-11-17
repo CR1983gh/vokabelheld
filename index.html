@@ -44,10 +44,13 @@ body{
 #l-skip.card-nav{right:0;border-radius:14px 0 0 14px}
 #v-learn .flipwrap{display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
-#v-learn .stage{flex:1;min-height:110px}
-/* Wort + Loesung: absolut auf identischer fester Position der Karte -> kein Verrutschen */
-#l-word,#l-solution{position:absolute;left:0;right:0;top:32%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;padding:0 46px;line-height:1.15}
-#l-solution{font-size:2rem;font-weight:800;color:var(--accent)}
+#v-learn .vcard{flex:1;display:flex;flex-direction:column;margin-bottom:14px;min-height:0}
+/* Zwei-Panels-Karte wie die Designvorlage: Frage oben, Antwort unten, duenne Trennlinie */
+#l-card .qpanel,#l-card .apanel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 46px;min-height:0}
+#l-card .apanel{border-top:1px solid #e5e5ea}
+#l-card .apanel[style*="display: none"]{display:none !important}
+#l-solution{font-size:2rem;font-weight:800;color:var(--ink);text-align:center;overflow-wrap:break-word;line-height:1.15}
+.pill{border-radius:999px !important}
 .solgrid{display:grid;grid-template-columns:1fr;gap:6px;width:100%}
 .solgrid span{text-align:center;overflow-wrap:break-word;line-height:1.2}
 #l-reveal{margin-top:auto}
@@ -678,25 +681,27 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     <div class="vcard" id="l-card" style="position:relative">
       <button class="card-nav" id="l-prev" title="Zurück">‹</button>
       <button class="card-nav" id="l-skip" title="Überspringen">›</button>
-      <div class="stage">
+      <div class="qpanel">
         <div class="vword" id="l-word">…</div>
-        <div id="l-solution" style="display:none"></div>
         <div class="hintline" id="l-hintline"></div>
       </div>
-      <div class="fb" id="l-fb"></div>
-      <div class="answerrow" id="l-answerrow">
-        <input id="l-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Übersetzung tippen …">
+      <div class="apanel" id="l-apanel" style="display:none">
+        <div id="l-solution"></div>
+        <div class="fb" id="l-fb" style="margin-top:10px"></div>
       </div>
-      <div id="l-flipwrap" class="flipwrap" style="display:none">
-        <button class="btn yellow" id="l-reveal" style="width:100%;font-size:1.15rem;padding:1rem 0">🔄 Lösung zeigen</button>
-        <div class="row" id="l-knowrow" style="display:none;margin-top:10px;gap:8px">
-          <button class="btn grow" id="l-noknow" style="background:var(--red);color:#fff;font-size:1.1rem;padding:1.05rem 0">✗ Nicht gewusst</button>
-          <button class="btn grow" id="l-know" style="background:var(--green);color:#fff;font-size:1.1rem;padding:1.05rem 0">✓ Gewusst</button>
-        </div>
-      </div>
-      <div style="margin-top:12px"><button class="btn red" id="l-next" style="display:none">Weiter</button></div>
-      <div class="levelbar" id="l-level"></div>
     </div>
+    <div class="answerrow" id="l-answerrow">
+      <input id="l-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Übersetzung tippen …">
+    </div>
+    <div id="l-flipwrap" class="flipwrap" style="display:none">
+      <button class="btn green pill" id="l-reveal" style="width:100%;font-size:1.15rem;padding:1.05rem 0">Antwort anzeigen</button>
+      <div class="row" id="l-knowrow" style="display:none;margin-top:12px;gap:12px">
+        <button class="btn grow pill" id="l-noknow" style="background:var(--red);color:#fff;font-size:1.35rem;padding:1.1rem 0">✕</button>
+        <button class="btn grow pill" id="l-know" style="background:var(--green);color:#fff;font-size:1.35rem;padding:1.1rem 0">✓</button>
+      </div>
+    </div>
+    <div style="margin-top:12px"><button class="btn red pill" id="l-next" style="display:none;width:100%">Weiter</button></div>
+    <div class="levelbar" id="l-level" style="margin-top:12px"></div>
     <div id="l-result" style="display:none"></div>
   </div>
 
@@ -1563,13 +1568,13 @@ function renderLearn(){
   $('l-flipwrap').style.display=FLIP?'':'none';
   $('l-answerrow').style.display=FLIP?'none':'';
   $('l-reveal').style.display='';
-  $('l-solution').style.display='none';
+  $('l-apanel').style.display='none';
   $('l-knowrow').style.display='none';
   /* Bereits beantwortetes Wort (via ◀ zurueck): Loesung sofort anzeigen */
   var answered=!!(L.answered&&L.answered[L.cur]);
   if(answered){
     renderSolution(p,p.rev);
-    $('l-solution').style.display='';
+    $('l-apanel').style.display='';
     $('l-reveal').style.display='none';
     $('l-answerrow').style.display='none';
     $('l-flipwrap').style.display='';
@@ -1606,9 +1611,8 @@ $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
-  $('l-word').style.display='none'; /* Loesung uebernimmt exakt die mittige Position */
   renderSolution(p,p.rev);
-  $('l-solution').style.display='';
+  $('l-apanel').style.display='';
   $('l-knowrow').style.display='';
 });
 $('l-know').addEventListener('click',function(){ flipJudge(true); });
@@ -1695,10 +1699,9 @@ function learnCheck(){
   var right=answerOk(val,p,p.rev);
   L.hist.push({i:L.cur,right:right}); /* fuer Zurueck-Blaettern */
   L.answered[L.cur]=true;
-  /* Loesung mittig anzeigen (gleiche Hoehe wie das Fragewort) */
-  $('l-word').style.display='none';
+  /* Loesung im unteren Panel anzeigen (wie Designvorlage) */
   renderSolution(p,p.rev);
-  $('l-solution').style.display='';
+  $('l-apanel').style.display='';
   if(right&&L.hint){
     L.tips++;
     fb.className='fb';
