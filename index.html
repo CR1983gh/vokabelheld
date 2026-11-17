@@ -921,10 +921,10 @@ function levelBadge(l){return l<=0?'🌱':(l>=7?'🧠':(l>=6?'⭐⭐⭐⭐⭐⭐
 /* Richtungszustand: vorwaerts (EN->DE) = p selbst, rueckwaerts (DE->EN) = p.r2 mit eigenen Stufen */
 function stOf(p,rev){ if(rev){ if(!p.r2||typeof p.r2!=='object')p.r2={level:0,falsch:0,zuletzt:null}; return p.r2; } return p; }
 function isLTM(p,rev){var s=stOf(p,rev);return (s.level||0)>=7;}
-/* Faelligkeit in Tagen je Stufe: 0=sofort, 1=sofort, 2=1 Tag, 3=3, 4=9, 5=29, 6=90 */
-var DUE=[0,0,1,3,9,29,90];
+/* Faelligkeit in Tagen je Stufe: 0=sofort, 1=sofort, 2=1 Tag, 3=3, 4=9, 5=29, 6=90, 7(LTM)=365 (jaehrliche Auffrischung) */
+var DUE=[0,0,1,3,9,29,90,365];
 var DAY=86400000;
-function dueAt(p,rev){ var s=stOf(p,rev); if(!s.zuletzt) return 0; return s.zuletzt + (DUE[Math.max(0,Math.min(6,s.level||0))]*DAY); }
+function dueAt(p,rev){ var s=stOf(p,rev); if(!s.zuletzt) return 0; return s.zuletzt + (DUE[Math.max(0,Math.min(7,s.level||0))]*DAY); }
 function sameDay(a,b){ var da=new Date(a),db2=new Date(b); return da.getFullYear()===db2.getFullYear()&&da.getMonth()===db2.getMonth()&&da.getDate()===db2.getDate(); }
 function isDue(p,rev){
   var s=stOf(p,rev);
@@ -1346,7 +1346,7 @@ function renderHome(){
   }
   db.books.forEach(function(b,i){
     var ps=dualPairs(bookPool(b));
-    var due=ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length;
+    var due=ps.filter(function(v){return isDue(v.orig,v.rev);}).length;
     var ltm=ps.filter(function(v){return isLTM(v.orig,v.rev);}).length;
     var row=document.createElement('button');
     row.className='bookrow'+(i===db.aktiv?' eig':'');
@@ -1360,7 +1360,7 @@ function renderHome(){
       stat.innerHTML='<span class="bdue">'+due+'</span><small>üben</small>';
     }else{
       var naechster=null;
-      ps.forEach(function(v){ if(isLTM(v.orig,v.rev))return; var d=dueAt(v.orig,v.rev); if(naechster===null||d<naechster)naechster=d; });
+      ps.forEach(function(v){ var d=dueAt(v.orig,v.rev); if(naechster===null||d<naechster)naechster=d; });
       if(naechster===null){
         stat.innerHTML='<span class="bwait">🧠</span><small>fertig</small>';
       }else{
@@ -1391,7 +1391,7 @@ function openBook(i){
 function renderBook(){
   var b=set(); if(!b)return;
   var ps=dualPairs(bookPool(b));
-  var due=ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length;
+  var due=ps.filter(function(v){return isDue(v.orig,v.rev);}).length;
   $('bd-flag').textContent=langOf(b.lang).flag;
   $('bd-title').textContent=b.name;
   $('bd-sub').textContent=zuletztText(b);
@@ -1405,7 +1405,7 @@ function renderBook(){
 $('bd-heute').addEventListener('click',function(){
   var ps=dualPairs(bookPool(set()));
   if(!ps.length){show('ws');return;}
-  if(!ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length){
+  if(!ps.filter(function(v){return isDue(v.orig,v.rev);}).length){
     alert('🎉 Super! Heute ist alles gelernt.');return;
   }
   startLearn(true);
@@ -1416,7 +1416,7 @@ $('bd-neu').addEventListener('click',function(){ renderWs(); show('ws'); });
 $('bd-reg').addEventListener('click',function(){
   var ps=dualPairs(bookPool(set()));
   if(!ps.length){show('ws');return;}
-  if(!ps.filter(function(v){return !isLTM(v.orig,v.rev)&&isDue(v.orig,v.rev);}).length){
+  if(!ps.filter(function(v){return isDue(v.orig,v.rev);}).length){
     alert('🎉 Super! Heute ist alles gelernt.');return;
   }
   startLearn(true);
@@ -1479,8 +1479,8 @@ function startLearn(onlyDue,presetIdx){
   markLearned();
   var ps=dualPool();
   if(!ps.length){alert('Dein aktiver Pool ist leer. Füge Wörter hinzu: „📚 Mein Wortschatz“.');show('ws');return;}
-  var idx=presetIdx||ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i].orig,ps[i].rev);});
-  if(!presetIdx&&!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln sitzen im Langzeitgedächtnis.');return;}
+  var idx=presetIdx||ps.map(function(_,i){return i;}).filter(function(i){return !isLTM(ps[i].orig,ps[i].rev)||isDue(ps[i].orig,ps[i].rev);});
+  if(!presetIdx&&!idx.length){alert('🧠 Wahnsinn! Alle Vokabeln sitzen im Langzeitgedächtnis. Die nächste Auffrischung kommt erst in einem Jahr.');return;}
   if(onlyDue&&!presetIdx){ idx=idx.filter(function(i){return isDue(ps[i].orig,ps[i].rev);});
     if(!idx.length){alert('🎉 Super! Heute ist alles gelernt.');return;} }
   /* Reihenfolge: niedrigste Stufe zuerst, dann aufsteigend; innerhalb gleicher Stufe zufaellig */
@@ -1620,7 +1620,7 @@ function flipJudge(right){
     if(!L.test)stV(p).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
     if(!L.test)save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
+    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Nächste Auffrischung in 1 Jahr!':(up?'Gewusst! ✅':'Gewusst! 👍 (Stufe steigt, wenn sie fällig ist)');
     card.classList.add('ok','flashok');
     renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
@@ -1699,7 +1699,7 @@ function learnCheck(){
     if(!L.test)stV(p).zuletzt=Date.now(); /* Stempel: heute geuebt (nur normale Session) */
     if(!L.test)save();
     fb.className='fb ok';
-    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
+    fb.textContent=isLTM(p.orig,p.rev)?'🧠 LANGZEITGEDÄCHTNIS! Nächste Auffrischung in 1 Jahr!':(up?"Genau! ✅":"Genau! 👍 (Stufe steigt, wenn sie fällig ist)");
     card.classList.add('ok','flashok');
     renderLevelBar($('l-level'),stV(p).level);
     updateLProg();
@@ -1966,7 +1966,7 @@ function diktatCheck(){
     D.richtig++;
     levelUp(p,false);
     save();
-    fb.className='fb ok';fb.textContent=isLTM(p,false)?'🧠 LANGZEITGEDÄCHTNIS! Das Wort weißt du jetzt für immer!':"Genau! ✅";
+    fb.className='fb ok';fb.textContent=isLTM(p,false)?'🧠 LANGZEITGEDÄCHTNIS! Nächste Auffrischung in 1 Jahr!':"Genau! ✅";
     card.classList.add('ok','flashok');
     updateDProg();
     setTimeout(function(){
@@ -2007,7 +2007,7 @@ var STUFE_INFO=[
   ['⭐⭐⭐⭐','Stufe 4','Stark','nach 9 Tagen'],
   ['⭐⭐⭐⭐⭐','Stufe 5','Sehr stark','nach 29 Tagen'],
   ['⭐⭐⭐⭐⭐⭐','Stufe 6','Fast geschafft','nach 90 Tagen'],
-  ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','wird nicht mehr abgefragt']
+  ['🧠','Langzeit-🧠','Im Langzeitgedächtnis','jährliche Auffrischung']
 ];
 /* ---------- TESTS ---------- */
 var TE=null; /* Editor-Zustand */
@@ -2171,7 +2171,7 @@ function renderReport(){
   ps.forEach(function(p){
     var l=isLTM(p.orig,p.rev)?7:Math.max(0,Math.min(6,stV(p).level||0));
     groups[l].push(p);
-    if(l>0&&l<7&&isDue(p.orig,p.rev)) dueCount++;
+    if(l>0&&isDue(p.orig,p.rev)) dueCount++;
   });
   var maxN=Math.max.apply(null,groups.map(function(g){return g.length;}).concat([1]));
   if(RPT_SEL===null||RPT_SEL<0||RPT_SEL>7){
@@ -2201,7 +2201,7 @@ function renderReport(){
   /* --- Tier + Text der gewaehlten Stufe --- */
   var TIERE=['🐣','🐥','🐢','🦊','🦁','🐉','🚀','🧠'];
   var g=groups[sel];
-  var stufeText=sel>=7?'wird nicht mehr abgefragt':(sel<=1?'sofort wieder fällig':'nach '+DUE[sel]+' '+(DUE[sel]===1?'Tag':'Tagen')+' wieder fällig');
+  var stufeText=sel>=7?'jährliche Auffrischung (nach 1 Jahr)':(sel<=1?'sofort wieder fällig':'nach '+DUE[sel]+' '+(DUE[sel]===1?'Tag':'Tagen')+' wieder fällig');
   h+='<div class="card" style="text-align:center;margin-top:10px">'
     +'<div style="font-size:3.4rem;line-height:1.15">'+(g.length?TIERE[sel]:'💤')+'</div>'
     +'<div style="font-weight:800;font-size:1.05rem;margin-top:4px;letter-spacing:-.01em">'+g.length+' '+(g.length===1?'Wort':'Wörter')+' in '+(sel>=7?'🧠 Langzeitgedächtnis':'Stufe '+sel)+'</div>'
