@@ -44,11 +44,16 @@ body{
 #l-skip.card-nav{right:0;border-radius:14px 0 0 14px}
 #v-learn .flipwrap{display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
-#v-learn .vcard{flex:1;display:flex;flex-direction:column;margin-bottom:14px;min-height:0}
-/* Zwei-Panels-Karte wie die Designvorlage: Frage oben, Antwort unten, duenne Trennlinie */
-#l-card .qpanel,#l-card .apanel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 46px;min-height:0}
+#v-learn .vcard{flex:1;display:grid;grid-template-rows:1fr 1fr;margin-bottom:14px;min-height:0}
+/* Frage-State: apanel versteckt -> qpanel uebernimmt die ganze Karte (Wort exakt auf Pfeilhoehe) */
+#v-learn .vcard:not(.answered) .qpanel{grid-row:1 / 3}
+#v-learn .vcard.answered .qpanel{grid-row:1 / 2}
+/* Zwei-Panels-Karte wie die Designvorlage: Frage oben, Antwort unten, duenne Trennlinie.
+   Grid 1fr/1fr garantiert exakt gleiche Panel-Hoehen -> Wort und Antwort auf identischer Hoehe. */
+#l-card .qpanel,#l-card .apanel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 46px;min-height:0;position:relative;overflow:hidden}
+#l-hintline{position:absolute;left:0;right:0;bottom:6px;margin-top:0}
 #l-card .apanel{border-top:1px solid #e5e5ea}
-#l-card .apanel[style*="display: none"]{display:none !important}
+#l-card .apanel .fb{margin-top:0}
 #l-solution{font-size:2rem;font-weight:800;color:var(--ink);text-align:center;overflow-wrap:break-word;line-height:1.15}
 .pill{border-radius:999px !important}
 .solgrid{display:grid;grid-template-columns:1fr;gap:6px;width:100%}
@@ -687,7 +692,7 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
       </div>
       <div class="apanel" id="l-apanel" style="display:none">
         <div id="l-solution"></div>
-        <div class="fb" id="l-fb" style="margin-top:10px"></div>
+        <div class="fb" id="l-fb"></div>
       </div>
     </div>
     <div class="answerrow" id="l-answerrow">
@@ -1555,7 +1560,7 @@ function renderLearn(){
   if(!p){L.queue.shift();return renderLearn();}
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
-  card.classList.remove('ok','bad','shake','flashok');
+  card.classList.remove('ok','bad','shake','flashok','answered');
   $('l-word').style.display='';
   $('l-word').textContent=promptOf(p,p.rev);
   $('l-hintline').textContent='';
@@ -1570,11 +1575,11 @@ function renderLearn(){
   $('l-reveal').style.display='';
   $('l-apanel').style.display='none';
   $('l-knowrow').style.display='none';
+  setNav(true); /* Pfeile nur bei der Frage sichtbar */
   /* Bereits beantwortetes Wort (via ◀ zurueck): Loesung sofort anzeigen */
   var answered=!!(L.answered&&L.answered[L.cur]);
   if(answered){
-    renderSolution(p,p.rev);
-    $('l-apanel').style.display='';
+    showAnswer(p);
     $('l-reveal').style.display='none';
     $('l-answerrow').style.display='none';
     $('l-flipwrap').style.display='';
@@ -1607,12 +1612,21 @@ $('l-skip').addEventListener('click',function(){
   L.queue.push(cur);
   renderLearn();
 });
+function setNav(on){
+  var a=['l-prev','l-skip'];
+  for(var i=0;i<a.length;i++){var e=$(a[i]); if(e)e.style.display=on?'':'none';}
+}
+function showAnswer(p){
+  renderSolution(p,p.rev);
+  $('l-apanel').style.display='';
+  $('l-card').classList.add('answered');
+  setNav(false);
+}
 $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
-  renderSolution(p,p.rev);
-  $('l-apanel').style.display='';
+  showAnswer(p);
   $('l-knowrow').style.display='';
 });
 $('l-know').addEventListener('click',function(){ flipJudge(true); });
@@ -1700,8 +1714,7 @@ function learnCheck(){
   L.hist.push({i:L.cur,right:right}); /* fuer Zurueck-Blaettern */
   L.answered[L.cur]=true;
   /* Loesung im unteren Panel anzeigen (wie Designvorlage) */
-  renderSolution(p,p.rev);
-  $('l-apanel').style.display='';
+  showAnswer(p);
   if(right&&L.hint){
     L.tips++;
     fb.className='fb';
