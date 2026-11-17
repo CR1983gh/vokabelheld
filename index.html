@@ -42,9 +42,12 @@ body{
 .card-nav:disabled{opacity:.25;cursor:default}
 #l-prev.card-nav{left:0;border-radius:0 14px 14px 0}
 #l-skip.card-nav{right:0;border-radius:14px 0 0 14px}
-#v-learn .flipwrap{flex:1;display:flex;flex-direction:column;min-height:0}
+#v-learn .flipwrap{display:flex;flex-direction:column;min-height:0}
 #v-learn .flipwrap[style*="display: none"]{display:none !important}
-#l-solution{flex:1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:var(--accent);padding:0 46px}
+#v-learn .stage{flex:1;min-height:110px}
+/* Wort + Loesung: absolut auf identischer fester Position der Karte -> kein Verrutschen */
+#l-word,#l-solution{position:absolute;left:0;right:0;top:32%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;padding:0 46px;line-height:1.15}
+#l-solution{font-size:2rem;font-weight:800;color:var(--accent)}
 .solgrid{display:grid;grid-template-columns:1fr;gap:6px;width:100%}
 .solgrid span{text-align:center;overflow-wrap:break-word;line-height:1.2}
 #l-reveal{margin-top:auto}
@@ -675,22 +678,24 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
     <div class="vcard" id="l-card" style="position:relative">
       <button class="card-nav" id="l-prev" title="Zurück">‹</button>
       <button class="card-nav" id="l-skip" title="Überspringen">›</button>
-      <div class="vword" id="l-word">…</div>
-      <div class="levelbar" id="l-level"></div>
-      <div class="hintline" id="l-hintline"></div>
-      <div class="answerrow" id="l-answerrow" style="margin-top:auto">
+      <div class="stage">
+        <div class="vword" id="l-word">…</div>
+        <div id="l-solution" style="display:none"></div>
+        <div class="hintline" id="l-hintline"></div>
+      </div>
+      <div class="fb" id="l-fb"></div>
+      <div class="answerrow" id="l-answerrow">
         <input id="l-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Übersetzung tippen …">
       </div>
-      <div id="l-flipwrap" class="flipwrap" style="display:none;margin-top:auto">
+      <div id="l-flipwrap" class="flipwrap" style="display:none">
         <button class="btn yellow" id="l-reveal" style="width:100%;font-size:1.15rem;padding:1rem 0">🔄 Lösung zeigen</button>
-        <div id="l-solution" style="display:none"></div>
         <div class="row" id="l-knowrow" style="display:none;margin-top:10px;gap:8px">
           <button class="btn grow" id="l-noknow" style="background:var(--red);color:#fff;font-size:1.1rem;padding:1.05rem 0">✗ Nicht gewusst</button>
           <button class="btn grow" id="l-know" style="background:var(--green);color:#fff;font-size:1.1rem;padding:1.05rem 0">✓ Gewusst</button>
         </div>
       </div>
-      <div class="fb" id="l-fb"></div>
       <div style="margin-top:12px"><button class="btn red" id="l-next" style="display:none">Weiter</button></div>
+      <div class="levelbar" id="l-level"></div>
     </div>
     <div id="l-result" style="display:none"></div>
   </div>
@@ -1546,6 +1551,7 @@ function renderLearn(){
   L.cur=L.queue[0];L.hint=false;L.locked=false;
   var card=$('l-card');
   card.classList.remove('ok','bad','shake','flashok');
+  $('l-word').style.display='';
   $('l-word').textContent=promptOf(p,p.rev);
   $('l-hintline').textContent='';
   $('l-fb').innerHTML='';
@@ -1600,6 +1606,7 @@ $('l-reveal').addEventListener('click',function(){
   if(!L||L.locked)return;
   var p=L.ws()[L.cur]; if(!p)return;
   this.style.display='none';
+  $('l-word').style.display='none'; /* Loesung uebernimmt exakt die mittige Position */
   renderSolution(p,p.rev);
   $('l-solution').style.display='';
   $('l-knowrow').style.display='';
@@ -1688,6 +1695,10 @@ function learnCheck(){
   var right=answerOk(val,p,p.rev);
   L.hist.push({i:L.cur,right:right}); /* fuer Zurueck-Blaettern */
   L.answered[L.cur]=true;
+  /* Loesung mittig anzeigen (gleiche Hoehe wie das Fragewort) */
+  $('l-word').style.display='none';
+  renderSolution(p,p.rev);
+  $('l-solution').style.display='';
   if(right&&L.hint){
     L.tips++;
     fb.className='fb';
