@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f5f5f7">
-<title>Vokabel-Held</title>
+<title>Hallo Passi</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{max-width:100%;overflow-x:hidden}
@@ -478,7 +478,7 @@ body.thm-note{--t-bg:#fdfcf7;--t-ink:#2b3a55;--t-ink2:#8b95a8;--t-card:#fff;--t-
   <!-- ============ HOME ============ -->
   <div class="view active" id="v-home">
     <button id="gear-btn" aria-label="Einstellungen" title="Einstellungen">⚙︎</button>
-    <h1 class="logo">🦸 Vokabel-Held</h1>
+    <h1 class="logo">👋 Hallo Passi</h1>
     <div id="booklist"></div>
   </div>
 
@@ -2880,7 +2880,7 @@ function cloudRestoreFlow(){
       bootApp();
       gsStatus('☁️ Profil aus Cloud wiederhergestellt ✓');
     } else {
-      alert('Kein Vokabelheld-Profil mit diesem Token gefunden. Stimmt der Token? Wurde vorher synchronisiert?');
+      alert('Kein Hallo-Passi-Profil mit diesem Token gefunden. Stimmt der Token? Wurde vorher synchronisiert?');
     }
   }).catch(function(){ alert('Cloud nicht erreichbar — bitte Internet prüfen.'); });
 }
@@ -3392,7 +3392,7 @@ function bkImportFile(file){
   rd.onload=function(){
     var obj; try{ obj=JSON.parse(rd.result); }catch(e){ alert('Datei konnte nicht gelesen werden (kein gültiges JSON).'); return; }
     var data=obj&&obj.kind==='backup'?obj.data:obj;
-    if(!data||!Array.isArray(data.books)){ alert('Keine Vokabelheld-Daten in der Datei gefunden.'); return; }
+    if(!data||!Array.isArray(data.books)){ alert('Keine Hallo-Passi-Daten in der Datei gefunden.'); return; }
     if(!confirm('Backup laden und aktuellen Stand dieses Profils ERSETZEN?\n('+countWords(data)+' Wörter, '+(obj.profile?('Profil „'+obj.profile.name+'“'):'unbekannt')+')'))return;
     db=data; ensure(); BK.ready=true; save();
     try{ localStorage.setItem('vhBkFileTs:'+(activeId()||''),String(Date.now())); }catch(e){}
